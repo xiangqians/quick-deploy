@@ -153,7 +153,7 @@
     </dependencyManagement>
 
     <build>
-        <finalName>${project.name}-${project.version}</finalName>
+        <finalName>${project.name}</finalName>
         <resources>
             <resource>
                 <!-- 指定资源目录 -->

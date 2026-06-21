@@ -5,7 +5,7 @@
 @setlocal
 
 @title Quick Deploy
-java -Dfile.encoding=UTF-8 -Dconsole.encoding=UTF-8 -jar quick-deploy-1.0.0.jar --server.port=58080
+java -Dfile.encoding=UTF-8 -Dconsole.encoding=UTF-8 -jar quick-deploy.jar --server.port=58080
 
 @endlocal
 @pause
