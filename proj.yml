@@ -71,11 +71,11 @@
   deploy:
     cmds:
       - run: cp /opt/java-test/web-1.0.0.jar ./
-      - run: /opt/java/jdk-17.0.8/bin/jar xvf web-1.0.0.jar
+      - run: /opt/java/jdk-21.0.2/bin/jar xvf web-1.0.0.jar
       - run: rm -rf BOOT-INF/classes BOOT-INF/lib/common-1.0.0.jar
       - run: cp -r classes BOOT-INF/
       - run: cp common-1.0.0.jar BOOT-INF/lib/
-      - run: /opt/java/jdk-17.0.8/bin/jar cvfm0 web-1.0.0.jar META-INF/MANIFEST.MF BOOT-INF META-INF org
+      - run: /opt/java/jdk-21.0.2/bin/jar cvfm0 web-1.0.0.jar META-INF/MANIFEST.MF BOOT-INF META-INF org
       - name: overwrite_restart
         pause: "#operatorName == 'webhook'"
         run: mv web-1.0.0.jar /opt/java-test/
