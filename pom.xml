@@ -37,16 +37,6 @@
 
     <dependencies>
 
-        <!--
-        <dependency>
-            <groupId>org.xiangqian</groupId>
-            <artifactId>deploy</artifactId>
-            <version>1.0.0</version>
-            <scope>system</scope>
-            <systemPath>D:/xiangqian/deploy/deploy-1.0.0.jar</systemPath>
-        </dependency>
-        -->
-
         <!-- 编码检测库 -->
         <!--
         <dependency>
