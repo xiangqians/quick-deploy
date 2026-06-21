@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <meta name="description" content="">
+    <meta name="author" content="">
+    <link rel="icon" type="image/svg+xml" th:href="@{/static/favicon.svg}"/>
+    <link rel="stylesheet" type="text/css" th:href="@{/static/css/login.css}"/>
+    <title>登录 - 快速部署</title>
+</head>
+<body>
+<div class="content">
+    <form class="login-form" method="post" action="/login">
+        <div th:if="${session.SPRING_SECURITY_LAST_EXCEPTION}" class="alert alert-danger" role="alert">
+            <span th:text="${session.SPRING_SECURITY_LAST_EXCEPTION.message}"></span>
+        </div>
+        <div th:if="${param.logout}" class="alert alert-success" role="alert">已成功退出登录</div>
+        <p>
+            <label for="username" class="screenreader">Username</label>
+            <input type="text" id="username" name="username" placeholder="用户名" required autofocus>
+        </p>
+        <p>
+            <label for="password" class="screenreader">Password</label>
+            <input type="password" id="password" name="password" placeholder="密码" required>
+        </p>
+        <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+        <button type="submit" class="primary">登录</button>
+    </form>
+</div>
+</body>
+</html>

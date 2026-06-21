@@ -1,0 +1,142 @@
+body {
+    overflow: hidden;
+}
+
+/* 主容器：左右分栏（日志 + 目录） */
+.container {
+    display: flex;
+    gap: 20px;
+    height: calc(100vh - 80px);
+    align-items: stretch; /* 强制等高 */
+}
+
+/* 左侧日志区域 */
+.content {
+    font-family: 'Consolas', 'Monaco', monospace;
+    flex: 1;
+    padding: 10px;
+    background: #f5f5f5;
+    border-radius: 8px;
+    overflow-y: auto;
+    box-sizing: border-box;
+    height: 100%; /* 核心：占满父容器高度 */
+    margin: 0; /* 清除默认边距 */
+}
+
+/* 右侧目录 */
+.toc-sidebar {
+    flex: 0 0 20%;
+    padding: 10px;
+    background: #fff;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    height: 100%;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column; /* 目录列表自适应高度 */
+}
+
+.toc-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    flex: 1; /* 核心：占满侧边栏剩余高度 */
+    overflow-y: auto;
+}
+
+.toc-list li {
+    margin: 6px 0;
+}
+
+.toc-list a {
+    display: block;
+    padding: 6px 10px;
+    text-decoration: none;
+    font-size: 14px;
+    border-radius: 4px;
+}
+
+.toc-list .prepare {
+    color: var(--color-prepare);
+}
+
+.toc-list .pull {
+    color: var(--color-pull);
+}
+
+.toc-list .build {
+    color: var(--color-build);
+}
+
+.toc-list .deploy {
+    color: var(--color-deploy);
+}
+
+.toc-list .abort {
+    color: var(--color-abort);
+}
+
+.toc-list .success {
+    color: var(--color-success);
+}
+
+.toc-list .failure {
+    color: var(--color-failure);
+}
+
+/* 日志行高亮 */
+/*.content [class*="-entry"] {*/
+/*    display: block;*/
+/*    margin: 5px 0;*/
+/*    padding: 4px 8px;*/
+/*    border-radius: 4px;*/
+/*    transition: background 0.3s;*/
+/*}*/
+
+.content .entry {
+    display: block;
+    padding: 2px 5px;
+    border-radius: 3px;
+    font-weight: bold;
+}
+
+.highlight {
+    background: #fffacd;
+}
+
+.content .entry.prepare {
+    color: var(--color-prepare);
+    border-left: 4px solid var(--color-prepare);
+}
+
+.content .entry.pull {
+    color: var(--color-pull);
+    border-left: 4px solid var(--color-pull);
+}
+
+.content .entry.build {
+    color: var(--color-build);
+    border-left: 4px solid var(--color-build);
+}
+
+.content .entry.deploy {
+    color: var(--color-deploy);
+    border-left: 4px solid var(--color-deploy);
+}
+
+.content .entry.abort {
+    color: var(--color-abort);
+    border-left: 4px solid var(--color-abort);
+}
+
+.content .entry.success {
+    color: var(--color-success);
+    border-left: 4px solid var(--color-success);
+}
+
+.content .entry.failure {
+    color: var(--color-failure);
+    border-left: 4px solid var(--color-failure);
+}
+
+

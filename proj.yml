@@ -1,0 +1,131 @@
+# 项目id（唯一标识）
+- id: java-test
+  # 项目名称
+  name: Java测试
+  # 认证令牌
+  token: mytoken
+  # 仓库
+  repo:
+    # 地址
+    url: http://mygit.org/example/java-test.git
+    # 分支
+    branch: dev
+    # 用户
+    user: myuser
+    # 密码
+    passwd: mypasswd
+  # 服务器
+  server:
+    # 主机
+    host: myserver
+    # 端口
+    port: 22
+    # 用户
+    user: myuser
+    # 密码
+    passwd: mypasswd
+  # 构建
+  build:
+    # 命令集
+    cmds:
+      # 找到 Maven 安装目录下的 bin/mvn.cmd，在文件中开始执行之前添加：
+      # @REM 设置 Maven 命令输出为 UTF-8 编码
+      # set MAVEN_OPTS=%MAVEN_OPTS% -Dfile.encoding=UTF-8 -Dconsole.encoding=UTF-8
+      - run: mvn.cmd clean package -Dmaven.test.skip=true -Dproject.build.sourceEncoding=UTF-8 -Dproject.reporting.outputEncoding=UTF-8 -Dfile.encoding=UTF-8
+    # 目标集
+    targets:
+      - web/target/web-1.0.0.jar
+  # 部署
+  deploy:
+    # 命令集
+    cmds:
+      # 名称
+      - name: overwrite_restart
+        # 满足条件时暂停，需用户确认后执行
+        pause: "#operatorName == 'webhook'"
+        # 执行
+        run: mv web-1.0.0.jar /opt/java-test/
+      - run: cd /opt/java-test && ./stop.sh
+      - run: cd /opt/java-test && ./start.sh
+
+- id: java-test_biz
+  name: Java测试（业务）
+  token: mytoken
+  repo:
+    url: http://mygit.org/example/java-test.git
+    branch: dev
+    user: myuser
+    passwd: mypasswd
+  server:
+    host: myserver
+    port: 22
+    user: myuser
+    passwd: mypasswd
+  build:
+    cmds:
+      - run: mvn.cmd package -Dmaven.test.skip=true -Dproject.build.sourceEncoding=UTF-8 -Dproject.reporting.outputEncoding=UTF-8 -Dfile.encoding=UTF-8
+      - run: if not exist "web/target/web-1.0.0.jar" rmdir /s /q "web/target/classes"
+    targets:
+      - common/target/common-1.0.0.jar
+      - web/target/classes
+  deploy:
+    cmds:
+      - run: cp /opt/java-test/web-1.0.0.jar ./
+      - run: /opt/java/jdk-17.0.8/bin/jar xvf web-1.0.0.jar
+      - run: rm -rf BOOT-INF/classes BOOT-INF/lib/common-1.0.0.jar
+      - run: cp -r classes BOOT-INF/
+      - run: cp common-1.0.0.jar BOOT-INF/lib/
+      - run: /opt/java/jdk-17.0.8/bin/jar cvfm0 web-1.0.0.jar META-INF/MANIFEST.MF BOOT-INF META-INF org
+      - name: overwrite_restart
+        pause: "#operatorName == 'webhook'"
+        run: mv web-1.0.0.jar /opt/java-test/
+      - run: cd /opt/java-test && ./stop.sh
+      - run: cd /opt/java-test && ./start.sh
+
+- id: vue
+  name: Vue测试
+  token: mytoken
+  repo:
+    url: http://mygit.org/example/vue-test.git
+    branch: dev
+    user: myuser
+    passwd: mypasswd
+  server:
+    host: myserver
+    port: 22
+    user: myuser
+    passwd: mypasswd
+  build:
+    # 安装环境：
+    # 1）nvm-setup.exe
+    # 2）$ nvm install 20.18.0
+    # 3）$ nvm list
+    #    $ nvm use 20.18.0
+    cmds:
+      - run: rmdir /s /q dist
+      - run: npm install
+      - run: npm install @zip.js/zip.js@2.7.73 uuid@9.0.0 --save-exact
+      - run: npm run build:test
+    targets:
+      - dist/assets
+      - dist/images
+      - dist/index.html
+  deploy:
+    cmds:
+      - name: overwrite_reload
+        pause: "#operatorName == 'webhook'"
+        run: rm -rf /opt/nginx/html/vue-test/assets
+      - run: rm -rf /opt/nginx/html/vue-test/images
+      - run: rm -rf /opt/nginx/html/vue-test/index.html
+      - run: mv assets /opt/nginx/html/vue-test/
+      - run: mv images /opt/nginx/html/vue-test/
+      - run: mv index.html /opt/nginx/html/vue-test/
+      - run: chown -R www:www /opt/nginx/html/vue-test/assets
+      - run: chown -R www:www /opt/nginx/html/vue-test/images
+      - run: chown -R www:www /opt/nginx/html/vue-test/index.html
+      # error: invalid PID number "" in "/run/nginx.pid"
+      # $ ps aux | grep nginx
+      # $ cat /run/nginx.pid
+      # 使用 pgrep 自动获取 Nginx 主进程 PID
+      # $ pgrep -f "nginx: master" | tee /run/nginx.pid
+      - run: nginx -s reload

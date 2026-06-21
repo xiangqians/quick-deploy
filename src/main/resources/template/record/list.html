@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <link rel="icon" type="image/svg+xml" th:href="@{/static/favicon.svg}"/>
+    <link rel="stylesheet" type="text/css" th:href="@{/static/css/body.css}"/>
+    <link rel="stylesheet" type="text/css" th:href="@{/static/css/record/list.css}"/>
+    <title th:text="'记录 · ' + ${projName} + ' - 快速部署'"></title>
+</head>
+<body>
+<h3 th:text="'记录 · ' + ${projName}"></h3>
+<table>
+    <thead>
+    <tr>
+        <th>提交</th>
+        <th>操作者</th>
+        <th>时间</th>
+        <th>状态</th>
+        <th>耗时</th>
+    </tr>
+    </thead>
+    <tbody>
+    <tr th:each="record, iterStat : ${records}">
+        <div th:replace="~{:: item(projId=${projId}, record=${record})}"></div>
+    </tr>
+    </tbody>
+</table>
+<th:block th:fragment="item(projId, record)" th:if="${record}" th:with="commit=${record.commit},status=${record.status}">
+    <td name="commit" th:if="${commit}" th:text="${commit.summary}" th:title="${commit.detail}">
+    <td name="commit" th:unless="${commit}">-</td>
+    <td name="operator" class="nowrap" th:text="${#strings.listJoin(record.operatorNicks, '、')}" th:title="${#strings.listJoin(record.operators, '、')}"></td>
+    <td name="time" class="nowrap" th:title="${T(org.xiangqian.quick.deploy.util.DateTimeUtil).format(record.startTime)}" th:text="${T(org.xiangqian.quick.deploy.util.DateTimeUtil).human(record.startTime)}"></td>
+    <td name="status" class="nowrap"><a th:class="${status.code}" th:utext="${status.label}" th:href="@{'/proj/'+ ${projId} + '/record/' + ${record.id} + '/log?t=' + ${timestamp}}" th:title="${status.detail}" target="_blank"></a></td>
+    <td name="duration" class="nowrap" th:text="${T(org.xiangqian.quick.deploy.util.DurationUtil).human(record.duration)}"></td>
+</th:block>
+</body>
+</html>

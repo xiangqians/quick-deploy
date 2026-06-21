@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <link rel="icon" type="image/svg+xml" th:href="@{/static/favicon.svg}"/>
+    <link rel="stylesheet" type="text/css" th:href="@{/static/css/body.css}"/>
+    <link rel="stylesheet" type="text/css" th:href="@{/static/css/index.css}"/>
+    <title>首页 - 快速部署</title>
+</head>
+<body th:context-path="@{/}">
+
+<h2 th:text="${user.nick}" style="display: inline;"></h2>
+<form id="logout" class="hidden" th:action="@{'/logout?t=' + ${timestamp}}" method="post">
+    <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+</form>
+<a href="#" onclick="document.getElementById('logout').submit(); return false;" style="margin-left: 15px;">退出登录</a>
+<a style="float: right; margin-right: 10px;" href="https://github.com/xiangqians/quick-deploy" target="_blank">GitHub</a>
+<br>
+<br>
+
+<table>
+    <thead>
+    <tr>
+        <th rowspan="2">名称</th>
+        <th rowspan="2">Git仓库</th>
+        <th rowspan="2">服务器</th>
+        <th colspan="5">最近一次部署记录</th>
+        <th rowspan="2">操作</th>
+    </tr>
+    <tr>
+        <th>提交</th>
+        <th>操作者</th>
+        <th>时间</th>
+        <th>状态</th>
+        <th>耗时</th>
+    </tr>
+    </thead>
+    <tbody>
+    <tr th:each="proj : ${projs}" th:id="${proj.id}"
+        th:with="repo=${proj.repo},server=${proj.server},lastRecord=${proj.lastRecord}">
+        <td>
+            <a name="name" th:text="${proj.name}" th:href="@{'/proj/'+ ${proj.id} +'/record/list?t=' + ${timestamp}}" target="_blank"></a>
+            <span name="todayRecordCount" class="record-count" th:text="'今日部署' + ${proj.todayRecordCount} + '次'"></span>
+        </td>
+        <td class="nowrap" th:text="${repo.url + '@' + repo.branch}"></td>
+        <td class="nowrap" th:text="${server.user + '@' + server.host + ':' + server.port}"></td>
+        <div th:replace="~{record/list :: item(projId=${proj.id}, record=${lastRecord})}"></div>
+        <th:block th:unless="${lastRecord}">
+            <td name="commit">-</td>
+            <td name="operator" class="nowrap">-</td>
+            <td name="time" class="nowrap">-</td>
+            <td name="status" class="nowrap"><a th:href="@{'/proj/'+ ${proj.id} + '/record/{recordId}/log?t=' + ${timestamp}}" target="_blank">-</a></td>
+            <td name="duration" class="nowrap">-</td>
+        </th:block>
+        <td class="op nowrap" style="text-align: left;" th:with="running=${lastRecord?.running ?: false},paused=${lastRecord?.paused ?: false},final=${lastRecord?.final ?: true}">
+            <!-- 下拉框 -->
+            <div class="select" name="lastCommits" th:with="lastCommits=${repo.lastCommits}">
+                <!-- 触发按钮 -->
+                <div class="trigger" data-value="HEAD" title="">HEAD</div>
+                <!-- 下拉列表 -->
+                <ul class="dropdown">
+                    <li class="option active" data-value="HEAD" title="">HEAD</li>
+                    <th:block th:if="${lastCommits != null}" th:each="commit : ${lastCommits}">
+                        <li class="option" th:data-value="${commit.id}" th:text="${commit.shortMsg}" th:title="${commit.detail}"></li>
+                    </th:block>
+                </ul>
+            </div>
+            <a name="pull" th:class="${final ? 'visible' : 'hidden'}" th:href="@{'/proj/'+ ${proj.id} +'/pull?t=' + ${timestamp}}">拉取</a>
+            <a name="deploy" th:class="${final ? 'visible' : 'hidden'}" th:href="@{'/proj/'+ ${proj.id} +'/{commitId}/deploy?t=' + ${timestamp}}">部署</a>
+            <a name="resume" th:class="${paused ? 'visible' : 'hidden'}" th:href="@{'/proj/'+ ${proj.id} +'/resume?t=' + ${timestamp}}">继续</a>
+            <a name="abort" th:class="${running ? 'visible' : 'hidden'}" th:href="@{'/proj/'+ ${proj.id} +'/abort?t=' + ${timestamp}}">中止</a>
+        </td>
+    </tr>
+    </tbody>
+</table>
+</body>
+</html>
+<script>
+
+    document.addEventListener('DOMContentLoaded', function () {
+        // 上下文路径
+        const ctxPath = (function () {
+            let ctxPath = document.body.getAttribute('context-path');
+            if (ctxPath.endsWith('/')) {
+                ctxPath = ctxPath.substring(0, ctxPath.length - 1);
+            }
+            return ctxPath;
+        })();
+
+        // 获取所有 class 为 "select" 的元素
+        document.querySelectorAll('.select').forEach(selectElem => {
+            const trElem = selectElem.closest('tr');
+            const id = trElem.getAttribute('id');
+
+            // 点击触发按钮，展开/收起下拉列表
+            const triggerElem = selectElem.querySelector('.trigger');
+            triggerElem.addEventListener('click', (e) => {
+                // 阻止事件冒泡
+                e.stopPropagation();
+
+                selectElem.classList.toggle('open');
+            });
+
+            // 点击页面其他区域，收起下拉列表
+            document.addEventListener('click', () => {
+                selectElem.classList.remove('open');
+            });
+
+            // 选择下拉选项
+            const dropdownElem = selectElem.querySelector('.dropdown');
+            dropdownElem.addEventListener('click', (e) => {
+                const optionElem = e.target.closest('.option');
+                if (optionElem) {
+                    // 移除所有active样式
+                    dropdownElem.querySelectorAll('.option').forEach(item => {
+                        item.classList.remove('active');
+                    });
+                    // 给当前选项添加active
+                    optionElem.classList.add('active');
+                    // 更新触发按钮
+                    triggerElem.dataset.value = optionElem.dataset.value;
+                    triggerElem.textContent = optionElem.textContent;
+                    triggerElem.title = optionElem.title;
+                    // 收起下拉列表
+                    selectElem.classList.remove('open');
+                }
+            });
+
+            // 防止重复加载的节流标记
+            let isLoading = false;
+            // 标记是否还有更多数据
+            let hasMoreData = true;
+            // 记录加载中提示元素（方便复用/移除）
+            let loadingTip = null;
+            // 监听下拉列表滚动事件
+            dropdownElem.addEventListener('scroll', () => {
+                // 判断是否滚动到底部：元素已滚动的距离（顶部被卷起的高度） + 元素可视区域的高度 >= 元素内容的总高度（包括不可见部分）
+                const isAtBottom = dropdownElem.scrollTop + dropdownElem.clientHeight >= dropdownElem.scrollHeight - 1;
+                // 只有滚动到底部、未在加载中、还有更多数据时，才触发加载
+                if (isAtBottom && !isLoading && hasMoreData) {
+                    isLoading = true;
+                    // 显示加载中提示
+                    showLoadingTip();
+                    // 加载更多选项
+                    setTimeout(() => {
+                        loadMoreOptions();
+                    }, 1000); // 模拟接口延迟1s
+                }
+            });
+            // 显示加载中提示
+            function showLoadingTip() {
+                // 如果还没有创建加载提示元素，先创建
+                if (!loadingTip) {
+                    loadingTip = document.createElement('li');
+                    loadingTip.className = 'loading-tip';
+                    loadingTip.textContent = '加载中...';
+                }
+                // 添加到下拉列表末尾
+                dropdownElem.appendChild(loadingTip);
+            }
+            // 隐藏加载中提示
+            function hideLoadingTip() {
+                if (loadingTip && loadingTip.parentNode === dropdownElem) {
+                    dropdownElem.removeChild(loadingTip);
+                }
+            }
+
+            // 记录是否已添加无数据提示（避免重复添加）
+            let isTipAdded = false;
+
+            // 加载更多选项的函数
+            function loadMoreOptions() {
+                // 先隐藏加载中提示
+                hideLoadingTip();
+
+                const lastOptionElem = dropdownElem.querySelector('li:last-child');
+                const commitId = lastOptionElem.dataset.value;
+
+                // GET 请求
+                fetch(ctxPath + `/proj/${id}/${commitId}/prevCommits`)
+                    .then(response => {
+                        if (!response.ok) {
+                            throw new Error(`${response.status} ${response.statusText}`);
+                        }
+                        return response.json();
+                    })
+                    .then(data => {
+                        const length = data.length;
+
+                        // 生成新选项
+                        if (length > 0) {
+                            for (let i = 0, length = data.length; i < length; i++) {
+                                const commit = data[i];
+                                const optionElem = document.createElement('li');
+                                optionElem.className = 'option';
+                                optionElem.dataset.value = commit.id;
+
+                                let msg = commit.msg;
+                                if (msg.length > 10) {
+                                    msg = msg.substring(0, 10) + " ...";
+                                }
+                                optionElem.textContent = msg;
+
+                                optionElem.title = `Id: ${commit.id}\nAuthor: ${commit.author}\nDate: ${commit.date}\n${commit.msg}`;
+                                dropdownElem.appendChild(optionElem);
+                            }
+                        }
+                        // 更新是否还有更多数据的标记
+                        else {
+                            hasMoreData = false;
+                        }
+
+                        // 如果没有更多数据了，添加无数据提示
+                        if (!hasMoreData && !isTipAdded) {
+                            const tipLi = document.createElement('li');
+                            tipLi.className = 'no-more-tip';
+                            tipLi.textContent = '没有更多数据了';
+                            dropdownElem.appendChild(tipLi);
+                            // 标记已添加，避免重复
+                            isTipAdded = true;
+                        }
+                    })
+                    .catch(error => {
+                        console.error(error);
+                    })
+                    .finally(() => {
+                        // 加载完成，重置节流标记
+                        isLoading = false;
+                    });
+            }
+        });
+
+        // 获取操作链接
+        document.querySelectorAll('a[name="pull"],a[name="deploy"],a[name="resume"],a[name="abort"]').forEach(aElem => {
+            aElem.addEventListener('click', function (event) {
+                // 目标节点
+                const aElem = event.target;
+                console.log()
+
+                // 获取父节点
+                const tdElem = aElem.parentElement;
+                const trElem = tdElem.parentElement;
+
+                if (!confirm(`确认${aElem.textContent}项目「${trElem.querySelector('[name="name"]').textContent}」吗？`)) {
+                    // 阻止默认行为
+                    event.preventDefault();
+
+                    return;
+                }
+
+                if (aElem.getAttribute('name') === 'deploy') {
+                    // 阻止默认行为
+                    event.preventDefault();
+
+                    // 获取 select 节点
+                    const selectElem = tdElem.querySelector('.select');
+                    // 获取选中的 option 节点
+                    const triggerElem = selectElem.querySelector('.trigger');
+                    const commitId = triggerElem.dataset.value;
+                    // 重新构建 href
+                    const href = decodeURIComponent(aElem.href).replace('{commitId}', commitId);
+                    // 执行跳转
+                    window.location.href = href;
+                }
+            });
+        });
+
+        // 事件
+        const eventSource = new EventSource(ctxPath + '/proj/event');
+        eventSource.onopen = function (event) {
+            // console.log('connected', event);
+        };
+        eventSource.onerror = (error) => {
+            console.error('error', error);
+        };
+        eventSource.addEventListener('proj', function (event) {
+            const proj = JSON.parse(event.data);
+            // console.log('proj event:', proj);
+            const lastRecord = proj.lastRecord;
+            const trElem = document.getElementById(proj.id);
+
+            // todayRecordCount
+            trElem.querySelector('[name="todayRecordCount"]').textContent = `今日部署${proj.todayRecordCount}次`;
+
+            // <a>
+            trElem.querySelectorAll('a[name="pull"],a[name="deploy"]').forEach(aElem => {
+                aElem.className = lastRecord.final ? 'visible' : 'hidden';
+            });
+            trElem.querySelector('a[name="resume"]').className = lastRecord.paused ? 'visible' : 'hidden';
+            trElem.querySelector('a[name="abort"]').className = lastRecord.running ? 'visible' : 'hidden';
+
+            // commit
+            let tdElem = trElem.querySelector('td[name="commit"]');
+            const commit = lastRecord.commit;
+            tdElem.textContent = commit.summary;
+            tdElem.title = commit.detail;
+
+            // operator
+            tdElem = trElem.querySelector('td[name="operator"]');
+            const operator = lastRecord.operator;
+            tdElem.textContent = operator.summary;
+            tdElem.title = operator.detail;
+
+            // time
+            tdElem = trElem.querySelector('td[name="time"]');
+            tdElem.textContent = lastRecord.time;
+
+            // status
+            tdElem = trElem.querySelector('td[name="status"]');
+            const aElem = tdElem.querySelector('a');
+            const status = lastRecord.status;
+            aElem.className = status.code;
+            aElem.innerHTML = status.label;
+            aElem.title = status.detail;
+
+            // duration
+            tdElem = trElem.querySelector('td[name="duration"]');
+            tdElem.textContent = lastRecord.duration;
+        });
+    });
+
+</script>

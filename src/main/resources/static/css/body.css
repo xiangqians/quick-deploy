@@ -1,0 +1,42 @@
+:root {
+    --color-prepare: #78716c;
+    --color-pull: #3874d0;
+    --color-build: #d97706;
+    --color-deploy: #7c3aed;
+    --color-abort: #a8a29e;
+    --color-success: #059669;
+    --color-failure: #dc2626;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    font-size: 15px;
+    color: #333;
+    background: #fff;
+    margin: 20px;
+}
+
+a {
+    text-decoration: none;
+}
+
+a[disabled] {
+    color: #999 !important; /* 灰色文字 */
+    pointer-events: none; /* 禁用点击 */
+    cursor: not-allowed; /* 禁用光标 */
+}
+
+.nowrap {
+    white-space: nowrap;
+}
+
+/* 隐藏元素（不占位）*/
+.hidden {
+    display: none;
+}
+
+/* 显示元素 */
+.visible {
+    display: inline;
+}
+

@@ -1,0 +1,8 @@
+Java测试
+http://localhost:58080/proj/java-test/deploy/webhook?token=mytoken
+
+Java测试（业务）
+http://localhost:58080/proj/java-test_biz/deploy/webhook?token=mytoken
+
+Vue测试
+http://localhost:58080/proj/vue/deploy/webhook?token=mytoken

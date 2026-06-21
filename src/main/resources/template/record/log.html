@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <link rel="icon" type="image/svg+xml" th:href="@{/static/favicon.svg}"/>
+    <link rel="stylesheet" type="text/css" th:href="@{/static/css/body.css}"/>
+    <link rel="stylesheet" th:href="@{/static/css/record/log.css}" type="text/css"/>
+    <title th:text="'日志 · ' + ${projName} + ' · ' + ${startTime} + ' - 快速部署'"></title>
+</head>
+<body>
+<!-- 标题 -->
+<h3 th:text="'日志 · ' + ${projName} + ' · ' + ${startTime}"></h3>
+<div class="container">
+    <!-- 内容 -->
+    <pre class="content" th:utext="${content}"></pre>
+    <!-- 目录 -->
+    <div class="toc-sidebar">
+        <ul class="toc-list"></ul>
+    </div>
+</div>
+</body>
+</html>
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const entryElems = document.querySelectorAll('.content .entry');
+        const tocListElem = document.querySelector('.toc-list');
+        const classes = ['prepare', 'pull', 'build', 'deploy', 'abort', 'success', 'failure'];
+
+        // 自动生成右侧目录
+        entryElems.forEach((entryElem, index) => {
+            // 创建目录项
+            const id = entryElem.id = `entry_${index + 1}`;
+            const li = document.createElement('li');
+            const a = document.createElement('a');
+            a.href = `#${id}`;
+            a.className = classes.find(c => entryElem.classList.contains(c)) || null;
+            a.textContent = entryElem.textContent.trim();
+            li.appendChild(a);
+            tocListElem.appendChild(li);
+
+            // 点击目录：平滑滚动 + 高亮
+            a.addEventListener('click', (e) => {
+                e.preventDefault();
+
+                // 去掉之前高亮
+                document.querySelectorAll('.toc-list .highlight').forEach(tocElem => {
+                    tocElem.classList.remove('highlight');
+                });
+                document.querySelectorAll('.content .entry.highlight').forEach(entryElem => {
+                    entryElem.classList.remove('highlight');
+                });
+
+                // 高亮当前
+                a.classList.add('highlight');
+                entryElem.classList.add('highlight');
+
+                // 平滑滚动到目标
+                entryElem.scrollIntoView({behavior: 'smooth', block: 'center'});
+            });
+        });
+    });
+</script>
