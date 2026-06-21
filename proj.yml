@@ -82,7 +82,7 @@
       - run: cd /opt/java-test && ./stop.sh
       - run: cd /opt/java-test && ./start.sh
 
-- id: vue
+- id: vue-test
   name: Vue测试
   token: mytoken
   repo:
