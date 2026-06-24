@@ -33,7 +33,7 @@ import java.util.stream.Collectors;
 @Data
 public class Record {
 
-    // 主键
+    // 唯一标识
     private String id;
     // 提交信息
     private Git.Commit commit;

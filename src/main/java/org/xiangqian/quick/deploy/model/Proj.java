@@ -11,9 +11,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.LocalDate;
-import java.util.Collections;
 import java.util.List;
-import java.util.Optional;
 
 /**
  * 项目
@@ -42,6 +40,17 @@ public class Proj {
 
     // 记录列表
     private List<Record> records;
+
+    // 组唯一标识
+    @JsonIgnore
+    private String groupId;
+    // 组名称
+    @JsonIgnore
+    private String groupName;
+
+    @JsonIgnore
+    @Getter(AccessLevel.NONE)
+    private String dir;
 
     // 是否已锁定
     @JsonIgnore
@@ -139,12 +148,14 @@ public class Proj {
     @SneakyThrows
     public Path getDir(String... more) {
         int moreLen = more != null ? more.length : 0;
-        String[] newMore = new String[1 + moreLen];
-        newMore[0] = id;
+        String[] newMore = new String[3 + moreLen];
+        newMore[0] = "proj";
+        newMore[1] = groupId;
+        newMore[2] = id;
         if (moreLen > 0) {
-            System.arraycopy(more, 0, newMore, 1, moreLen);
+            System.arraycopy(more, 0, newMore, 3, moreLen);
         }
-        Path dir = Path.of("proj", newMore);
+        Path dir = Path.of(this.dir, newMore);
         if (!Files.exists(dir)) {
             Files.createDirectories(dir);
         }

@@ -5,10 +5,10 @@
     <link rel="icon" type="image/svg+xml" th:href="@{/static/favicon.svg}"/>
     <link rel="stylesheet" type="text/css" th:href="@{/static/css/body.css}"/>
     <link rel="stylesheet" type="text/css" th:href="@{/static/css/record/list.css}"/>
-    <title th:text="'记录 · ' + ${projName} + ' - 快速部署'"></title>
+    <title th:text="'记录 - ' + ${groupName} + ' · ' + ${projName} + ' - 快速部署'"></title>
 </head>
 <body>
-<h3 th:text="'记录 · ' + ${projName}"></h3>
+<h3 th:text="'记录 - ' + ${groupName} + ' · ' + ${projName}"></h3>
 <table>
     <thead>
     <tr>
@@ -21,7 +21,7 @@
     </thead>
     <tbody>
     <tr th:each="record, iterStat : ${records}">
-        <div th:replace="~{:: item(projId=${projId}, record=${record})}"></div>
+        <div th:replace="~{:: item(groupId=${groupId}, projId=${projId}, record=${record})}"></div>
     </tr>
     </tbody>
 </table>
@@ -30,7 +30,7 @@
     <td name="commit" th:unless="${commit}">-</td>
     <td name="operator" class="nowrap" th:text="${#strings.listJoin(record.operatorNicks, '、')}" th:title="${#strings.listJoin(record.operators, '、')}"></td>
     <td name="time" class="nowrap" th:title="${T(org.xiangqian.quick.deploy.util.DateTimeUtil).format(record.startTime)}" th:text="${T(org.xiangqian.quick.deploy.util.DateTimeUtil).human(record.startTime)}"></td>
-    <td name="status" class="nowrap"><a th:class="${status.code}" th:utext="${status.label}" th:href="@{'/proj/'+ ${projId} + '/record/' + ${record.id} + '/log?t=' + ${timestamp}}" th:title="${status.detail}" target="_blank"></a></td>
+    <td name="status" class="nowrap"><a th:class="${status.code}" th:utext="${status.label}" th:href="@{'/proj/' + ${groupId} + '/' + ${projId} + '/record/' + ${record.id} + '/log?t=' + ${timestamp}}" th:title="${status.detail}" target="_blank"></a></td>
     <td name="duration" class="nowrap" th:text="${T(org.xiangqian.quick.deploy.util.DurationUtil).human(record.duration)}"></td>
 </th:block>
 </body>

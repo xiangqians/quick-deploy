@@ -27,73 +27,59 @@ public class ProjController extends AbsController {
     private ProjService projService;
 
     @RequestMapping("/")
-    public ModelAndView index(ModelAndView modelAndView) {
-        modelAndView.addObject("projs", projService.list());
-
-        // test
-        List<Proj> projs = (List<Proj>) modelAndView.getModel().get("projs");
-        Proj testProj = null;
-        for (Proj proj : projs) {
-            if ("test".equals(proj.getId())) {
-                testProj = proj;
-                break;
-            }
-        }
-        if (testProj != null) {
-            projs.addAll(Collections.nCopies(20, testProj));
-        }
-
+    public ModelAndView index(ModelAndView modelAndView, @RequestParam(name = "groupId", required = false) String groupId) {
+        projService.list(groupId).forEach(modelAndView::addObject);
         modelAndView.setViewName("index");
         return modelAndView;
     }
 
     @ResponseBody
-    @RequestMapping("/proj/{id}/{commitId}/prevCommits")
-    public List<Git.Commit> prevCommits(@PathVariable("id") String id, @PathVariable("commitId") String commitId) {
-        return projService.prevCommits(id, commitId);
+    @RequestMapping("/proj/{groupId}/{projId}/{commitId}/prevCommits")
+    public List<Git.Commit> prevCommits(@PathVariable("groupId") String groupId, @PathVariable("projId") String projId, @PathVariable("commitId") String commitId) {
+        return projService.prevCommits(groupId, projId, commitId);
     }
 
-    @RequestMapping("/proj/{id}/pull")
-    public RedirectView pull(@PathVariable("id") String id) {
-        projService.pull(id);
+    @RequestMapping("/proj/{groupId}/{projId}/pull")
+    public RedirectView pull(@PathVariable("groupId") String groupId, @PathVariable("projId") String projId) {
+        projService.pull(groupId, projId);
         return redirectView("/");
     }
 
-    @RequestMapping("/proj/{id}/{commitId}/deploy")
-    public RedirectView deploy(@PathVariable("id") String id, @PathVariable("commitId") String commitId) {
-        projService.deploy(id, commitId, proj -> true);
+    @RequestMapping("/proj/{groupId}/{projId}/{commitId}/deploy")
+    public RedirectView deploy(@PathVariable("groupId") String groupId, @PathVariable("projId") String projId, @PathVariable("commitId") String commitId) {
+        projService.deploy(groupId, projId, commitId, proj -> true);
         return redirectView("/");
     }
 
     @ResponseBody
-    @RequestMapping("/proj/{id}/deploy/webhook")
-    public Boolean webhookDeploy(@PathVariable("id") String id, @RequestParam(name = "token", required = false) String token) {
+    @RequestMapping("/proj/{groupId}/{projId}/deploy/webhook")
+    public Boolean webhookDeploy(@PathVariable("groupId") String groupId, @PathVariable("projId") String projId, @RequestParam(name = "token", required = false) String token) {
         SecurityUtil.setWebhookUser();
-        return projService.deploy(id, "HEAD", proj -> StringUtils.equals(proj.getToken(), token));
+        return projService.deploy(groupId, projId, "HEAD", proj -> StringUtils.equals(proj.getToken(), token));
     }
 
-    @RequestMapping("/proj/{id}/resume")
-    public RedirectView resume(@PathVariable("id") String id) {
-        projService.resume(id);
+    @RequestMapping("/proj/{groupId}/{projId}/resume")
+    public RedirectView resume(@PathVariable("groupId") String groupId, @PathVariable("projId") String projId) {
+        projService.resume(groupId, projId);
         return redirectView("/");
     }
 
-    @RequestMapping("/proj/{id}/abort")
-    public RedirectView abort(@PathVariable("id") String id) {
-        projService.abort(id);
+    @RequestMapping("/proj/{groupId}/{projId}/abort")
+    public RedirectView abort(@PathVariable("groupId") String groupId, @PathVariable("projId") String projId) {
+        projService.abort(groupId, projId);
         return redirectView("/");
     }
 
-    @RequestMapping("/proj/{projId}/record/list")
-    public ModelAndView recordList(ModelAndView modelAndView, @PathVariable("projId") String projId) {
-        projService.recordList(projId).forEach(modelAndView::addObject);
+    @RequestMapping("/proj/{groupId}/{projId}/record/list")
+    public ModelAndView recordList(ModelAndView modelAndView, @PathVariable("groupId") String groupId, @PathVariable("projId") String projId) {
+        projService.recordList(groupId, projId).forEach(modelAndView::addObject);
         modelAndView.setViewName("record/list");
         return modelAndView;
     }
 
-    @RequestMapping("/proj/{projId}/record/{recordId}/log")
-    public ModelAndView recordLog(ModelAndView modelAndView, @PathVariable("projId") String projId, @PathVariable("recordId") String recordId) {
-        projService.recordLog(projId, recordId).forEach(modelAndView::addObject);
+    @RequestMapping("/proj/{groupId}/{projId}/record/{recordId}/log")
+    public ModelAndView recordLog(ModelAndView modelAndView, @PathVariable("groupId") String groupId, @PathVariable("projId") String projId, @PathVariable("recordId") String recordId) {
+        projService.recordLog(groupId, projId, recordId).forEach(modelAndView::addObject);
         modelAndView.setViewName("record/log");
         return modelAndView;
     }
@@ -106,7 +92,7 @@ public class ProjController extends AbsController {
     // 2）基于 HTTP：无需特殊协议
     // 3）自动重连：浏览器自动处理连接断开
     // 4）轻量级：相比 WebSocket 更简单
-    @GetMapping(value = "/proj/event", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    @GetMapping(value = "/proj/{groupId}/event", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public SseEmitter event() {
         return projService.event();
     }

@@ -11,6 +11,9 @@ server:
         # 设置cookie过期时间：12h
         max-age: PT12H
 
+dir: ./
+#dir: ./tmp
+
 spring:
   # 模板配置
   thymeleaf:

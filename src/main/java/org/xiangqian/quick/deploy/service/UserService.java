@@ -5,6 +5,7 @@ import jakarta.annotation.PostConstruct;
 import lombok.SneakyThrows;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
@@ -13,7 +14,7 @@ import org.springframework.stereotype.Service;
 import org.xiangqian.quick.deploy.model.User;
 import org.xiangqian.quick.deploy.util.YamlUtil;
 
-import java.io.File;
+import java.nio.file.Path;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -28,6 +29,9 @@ import java.util.stream.Stream;
 @Service
 public class UserService implements UserDetailsService {
 
+    @Value("${dir}")
+    private String dir;
+
     @Autowired
     private PasswordEncoder passwordEncoder;
 
@@ -36,7 +40,7 @@ public class UserService implements UserDetailsService {
     @SneakyThrows
     @PostConstruct
     public void init() {
-        users = Stream.concat(YamlUtil.deser(new File("user.yml"), new TypeReference<List<User>>() {
+        users = Stream.concat(YamlUtil.deser(Path.of(dir, "user.yml").toFile(), new TypeReference<List<User>>() {
                         }).stream(),
                         Stream.of(User.builder().nick("Webhook").name("webhook").passwd("webhook").build()))
                 .map(user -> {

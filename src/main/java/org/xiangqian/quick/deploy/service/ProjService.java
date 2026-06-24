@@ -1,6 +1,7 @@
 package org.xiangqian.quick.deploy.service;
 
 import com.fasterxml.jackson.core.type.TypeReference;
+import jakarta.servlet.http.HttpSession;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.collections4.CollectionUtils;
@@ -27,6 +28,7 @@ import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -41,8 +43,7 @@ import java.util.stream.Collectors;
 @Service
 public class ProjService implements ApplicationRunner, Runnable {
 
-    // <id, Proj>
-    private Map<String, Proj> projs;
+    private Map<String, Group> groups;
 
     @Autowired
     private EmitterService emitterService;
@@ -50,63 +51,98 @@ public class ProjService implements ApplicationRunner, Runnable {
     @Autowired
     private UserService userService;
 
-    public ProjService(@Value("${server.port}") Integer port, @Value("${server.servlet.context-path}") String contextPath) throws Exception {
-        // 加载项目信息
-        projs = YamlUtil.deser(new File("proj.yml"), new TypeReference<List<Proj>>() {
-                })
-                .stream()
-                .collect(Collectors.toMap(Proj::getId, Function.identity(), (oldProj, newProj) -> {
-                    throw new IllegalStateException(String.format("Duplicate project ids [{id=%s, name=%s}, {id=%s, name=%s}]",
-                            oldProj.getId(), oldProj.getName(),
-                            newProj.getId(), newProj.getName()));
+    public ProjService(@Value("${server.port}") Integer port, @Value("${server.servlet.context-path}") String contextPath, @Value("${dir}") String dir) throws Exception {
+        // 加载项目组信息
+        groups = YamlUtil.deser(Path.of(dir, "proj.yml").toFile(), new TypeReference<List<Group>>() {
+                }).stream()
+                .collect(Collectors.toMap(Group::getId, Function.identity(), (oldGroup, newGroup) -> {
+                    throw new IllegalStateException(String.format("Duplicate group ids [{id=%s, name=%s}, {id=%s, name=%s}]",
+                            oldGroup.getId(), oldGroup.getName(),
+                            newGroup.getId(), newGroup.getName()));
                 }, LinkedHashMap::new));
 
-        // Webhook（网络钩子）
-        Files.writeString(Path.of("webhook.txt"), projs.values().stream()
-                .filter(proj -> proj.getToken() != null)
-                .map(proj -> String.format("%s\nhttp://localhost:%s%s/proj/%s/deploy/webhook?token=%s", proj.getName(), port, ("/".equals(contextPath) ? "" : contextPath), proj.getId(), proj.getToken()))
-                .collect(Collectors.joining("\n\n")));
+        StringBuilder webhook = new StringBuilder();
+        for (Group group : groups.values()) {
+            for (Proj proj : group.getProjs()) {
+                proj.setGroupId(group.getId());
+                proj.setGroupName(group.getName());
+                proj.setDir(dir);
 
-        for (Proj proj : projs.values()) {
-            // 初始化仓库
-            log.debug("开始初始化本地仓库（id={}, name={}）...", proj.getId(), proj.getName());
-            Repo repo = proj.getRepo();
-            repo.init(proj.getDir("repo"));
-            log.debug("已初始化本地仓库（id={}, name={}）", proj.getId(), proj.getName());
+                // Webhook（网络钩子）
+                webhook.append(String.format("%s\nhttp://localhost:%s%s/proj/%s/%s/deploy/webhook?token=%s\n\n", proj.getName(), port, ("/".equals(contextPath) ? "" : contextPath), group.getId(), proj.getId(), proj.getToken()));
 
-            // 加载记录列表
-            Path recordsJsonFile = proj.getRecordsJsonFile();
-            if (Files.exists(recordsJsonFile)) {
-                proj.setRecords(new LinkedList<>(JsonUtil.deser(Files.readAllBytes(recordsJsonFile), new TypeReference<List<Record>>() {
-                })));
+                // 初始化仓库
+                log.debug("初始化本地仓库 { groupId={}, projId={}, projName={} } ...", group.getId(), proj.getId(), proj.getName());
+                Repo repo = proj.getRepo();
+                repo.init(proj.getDir("repo"));
+                log.debug("已初始化本地仓库 { groupId={}, projId={}, projName={} }", group.getId(), proj.getId(), proj.getName());
 
-                Record lastRecord = proj.getLastRecord();
-                if (lastRecord != null) {
-                    lastRecord.setLogFile(proj.getRecordLogFile(lastRecord));
-                    if (!lastRecord.isFinal()) {
-                        lastRecord.addFailureStage();
-                        proj.writeRecordsJsonFile();
+                // 加载记录列表
+                Path recordsJsonFile = proj.getRecordsJsonFile();
+                if (Files.exists(recordsJsonFile)) {
+                    proj.setRecords(new LinkedList<>(JsonUtil.deser(Files.readAllBytes(recordsJsonFile), new TypeReference<List<Record>>() {
+                    })));
+
+                    Record lastRecord = proj.getLastRecord();
+                    if (lastRecord != null) {
+                        lastRecord.setLogFile(proj.getRecordLogFile(lastRecord));
+                        if (!lastRecord.isFinal()) {
+                            lastRecord.addFailureStage();
+                            proj.writeRecordsJsonFile();
+                        }
                     }
+                } else {
+                    proj.setRecords(new LinkedList<>());
                 }
-            } else {
-                proj.setRecords(new LinkedList<>());
             }
         }
+
+        Files.writeString(Path.of(dir, "webhook.txt"), webhook);
     }
 
-    public List<Proj> list() {
-        return projs.values().stream()
-                .map(proj -> {
-                    Repo repo = proj.getRepo();
-                    List<Git.Commit> commits = repo.log(20);
-                    repo.setLastCommits(commits);
-                    return proj;
-                })
-                .collect(Collectors.toList());
+    private Proj getProj(String groupId, String projId) {
+        Group group = groups.get(groupId);
+        if (group != null) {
+            return group.getProj(projId);
+        }
+        return null;
     }
 
-    public List<Git.Commit> prevCommits(String id, String commitId) {
-        Proj proj = projs.get(id);
+    public Map<String, Object> list(String groupId) {
+        groupId = StringUtils.trim(groupId);
+        HttpSession session = WebUtil.getSession();
+        if (StringUtils.isEmpty(groupId)) {
+            if (session.getAttribute("group") instanceof Group group) {
+                groupId = group.getId();
+            } else if (MapUtils.isNotEmpty(groups)) {
+                groupId = groups.keySet().iterator().next();
+            }
+        }
+        Group group = Group.builder()
+                .id(groupId)
+                .name(Optional.ofNullable(groups.get(groupId)).map(Group::getName).orElse(null))
+                .build();
+        session.setAttribute("group", group);
+
+        Map<String, Object> map = new HashMap<>(3, 1f);
+        map.put("group", group);
+        map.put("groups", groups.values().stream().map(Group::copy).collect(Collectors.toList()));
+
+        Collection<Proj> projs = Optional.ofNullable(groups.get(groupId)).map(Group::getProjs).orElse(null);
+        if (CollectionUtils.isNotEmpty(projs)) {
+            for (Proj proj : projs) {
+                Repo repo = proj.getRepo();
+                List<Git.Commit> commits = repo.log(20);
+                repo.setLastCommits(commits);
+            }
+            map.put("projs", projs);
+        }
+
+        return map;
+    }
+
+    public List<Git.Commit> prevCommits(String groupId, String projId, String commitId) {
+        Proj proj = getProj(groupId, projId);
         if (proj == null) {
             return Collections.emptyList();
         }
@@ -122,8 +158,8 @@ public class ProjService implements ApplicationRunner, Runnable {
         return commits;
     }
 
-    public Boolean pull(String id) {
-        Proj proj = projs.get(id);
+    public Boolean pull(String groupId, String projId) {
+        Proj proj = getProj(groupId, projId);
         if (proj == null || !proj.tryLock()) {
             return false;
         }
@@ -139,8 +175,8 @@ public class ProjService implements ApplicationRunner, Runnable {
     }
 
     @SneakyThrows
-    public Boolean deploy(String id, String commitId, Function<Proj, Boolean> validator) {
-        Proj proj = projs.get(id);
+    public Boolean deploy(String groupId, String projId, String commitId, Function<Proj, Boolean> validator) {
+        Proj proj = getProj(groupId, projId);
         if (proj == null || !Boolean.TRUE.equals(validator.apply(proj))) {
             return false;
         }
@@ -154,7 +190,7 @@ public class ProjService implements ApplicationRunner, Runnable {
                     && operator.equals(firstOperator)
                     && Boolean.TRUE.equals(Optional.ofNullable(lastRecord).map(Record::isRunning).orElse(null))) {
                 abort(proj);
-                asyncDeploy(id, commitId, validator);
+                asyncDeploy(groupId, projId, commitId, validator);
                 return true;
             }
             return false;
@@ -165,7 +201,7 @@ public class ProjService implements ApplicationRunner, Runnable {
                 && Boolean.TRUE.equals(Optional.ofNullable(lastRecord).map(Record::isPaused).orElse(null))) {
             proj.unlock();
             abort(proj);
-            asyncDeploy(id, commitId, validator);
+            asyncDeploy(groupId, projId, commitId, validator);
             return true;
         }
 
@@ -192,12 +228,12 @@ public class ProjService implements ApplicationRunner, Runnable {
         return true;
     }
 
-    private void asyncDeploy(String id, String commitId, Function<Proj, Boolean> validator) {
+    private void asyncDeploy(String groupId, String projId, String commitId, Function<Proj, Boolean> validator) {
         new Thread(() -> {
             try {
                 TimeUnit.SECONDS.sleep(1);
                 SecurityUtil.setWebhookUser();
-                deploy(id, commitId, validator);
+                deploy(groupId, projId, commitId, validator);
             } catch (InterruptedException e) {
             }
         }).start();
@@ -453,8 +489,8 @@ public class ProjService implements ApplicationRunner, Runnable {
         });
     }
 
-    public Boolean resume(String id) {
-        Proj proj = projs.get(id);
+    public Boolean resume(String groupId, String projId) {
+        Proj proj = getProj(groupId, projId);
         if (proj == null || !proj.tryLock()) {
             return false;
         }
@@ -470,8 +506,8 @@ public class ProjService implements ApplicationRunner, Runnable {
         return false;
     }
 
-    public Boolean abort(String id) {
-        Proj proj = projs.get(id);
+    public Boolean abort(String groupId, String projId) {
+        Proj proj = getProj(groupId, projId);
         if (proj == null) {
             return false;
         }
@@ -492,26 +528,29 @@ public class ProjService implements ApplicationRunner, Runnable {
     }
 
     @SneakyThrows
-    public Map<String, Object> recordList(String projId) {
-        Proj proj = projs.get(projId);
+    public Map<String, Object> recordList(String groupId, String projId) {
+        Proj proj = getProj(groupId, projId);
         if (proj == null) {
             throw new Exception("项目不存在");
         }
-        Map<String, Object> map = new HashMap<>(3, 1f);
+        Map<String, Object> map = new HashMap<>(5, 1f);
         map.put("projId", proj.getId());
         map.put("projName", proj.getName());
+        map.put("groupId", proj.getGroupId());
+        map.put("groupName", proj.getGroupName());
         map.put("records", proj.getRecords());
         return map;
     }
 
     @SneakyThrows
-    public Map<String, Object> recordLog(String projId, String recordId) {
-        Proj proj = projs.get(projId);
+    public Map<String, Object> recordLog(String groupId, String projId, String recordId) {
+        Proj proj = getProj(groupId, projId);
         if (proj == null) {
             throw new Exception("项目不存在");
         }
 
-        Map<String, Object> map = new HashMap<>(2, 1f);
+        Map<String, Object> map = new HashMap<>(4, 1f);
+        map.put("groupName", proj.getGroupName());
         map.put("projName", proj.getName());
         LocalDateTime startTime = null;
 
@@ -538,7 +577,8 @@ public class ProjService implements ApplicationRunner, Runnable {
         if (emitterService.isEmpty()) {
             return;
         }
-        for (Proj proj : projs.values()) {
+        Collection<Proj> projs = Collections.emptyList();
+        for (Proj proj : projs) {
             Record lastRecord = proj.getLastRecord();
             if (lastRecord == null) {
                 continue;
