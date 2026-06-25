@@ -5,9 +5,9 @@
     <link rel="icon" type="image/svg+xml" th:href="@{/static/favicon.svg}"/>
     <link rel="stylesheet" type="text/css" th:href="@{/static/css/body.css}"/>
     <link rel="stylesheet" type="text/css" th:href="@{/static/css/index.css}"/>
-    <title th:text="'首页 - ' + ${group.name} + ' - 快速部署'"></title>
+    <title th:text="'首页 - ' + ${group.name}"></title>
 </head>
-<body th:context-path="@{/}" th:group-name="${group.name}">
+<body th:context-path="@{/}" th:group-id="${group.id}" th:group-name="${group.name}">
 
 <h2 th:text="${user.nick}" style="display: inline;"></h2>
 <form id="logout" class="hidden" th:action="@{'/logout?t=' + ${timestamp}}" method="post">
@@ -44,9 +44,8 @@
     <tbody>
     <tr th:each="proj : ${projs}" th:id="${proj.id}"
         th:with="repo=${proj.repo},server=${proj.server},lastRecord=${proj.lastRecord}">
-        <td>
+        <td th:title="'今日部署 ' + ${proj.todayRecordCount} + ' 次'">
             <a name="name" th:text="${proj.name}" th:href="@{'/proj/' + ${proj.groupId} + '/' + ${proj.id} +'/record/list?t=' + ${timestamp}}" target="_blank"></a>
-            <span name="todayRecordCount" class="record-count" th:text="'今日部署' + ${proj.todayRecordCount} + '次'"></span>
         </td>
         <td class="nowrap" th:text="${repo.url + '@' + repo.branch}"></td>
         <td class="nowrap" th:text="${server.user + '@' + server.host + ':' + server.port}"></td>
@@ -92,6 +91,9 @@
             }
             return ctxPath;
         })();
+
+        // 组唯一标识
+        const groupId = document.body.getAttribute('group-id');
 
         // 获取所有 class 为 "select" 的元素
         document.querySelectorAll('.select').forEach(selectElem => {
@@ -239,6 +241,7 @@
         // 获取操作链接
         document.querySelectorAll('a[name="pull"],a[name="deploy"],a[name="resume"],a[name="abort"]').forEach(aElem => {
             aElem.addEventListener('click', function (event) {
+                // 组名称
                 const groupName = document.body.getAttribute('group-name');
                 // 目标节点
                 const aElem = event.target;
@@ -271,7 +274,7 @@
         });
 
         // 事件
-        const eventSource = new EventSource(ctxPath + '/proj/event');
+        const eventSource = new EventSource(`${ctxPath}/proj/${groupId}/event`);
         eventSource.onopen = function (event) {
             // console.log('connected', event);
         };
@@ -285,7 +288,7 @@
             const trElem = document.getElementById(proj.id);
 
             // todayRecordCount
-            trElem.querySelector('[name="todayRecordCount"]').textContent = `今日部署${proj.todayRecordCount}次`;
+            trElem.querySelector('[name="name"]').parentElement.title = `今日部署 ${proj.todayRecordCount} 次`;
 
             // <a>
             trElem.querySelectorAll('a[name="pull"],a[name="deploy"]').forEach(aElem => {

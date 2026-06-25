@@ -28,7 +28,6 @@ import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -69,7 +68,10 @@ public class ProjService implements ApplicationRunner, Runnable {
                 proj.setDir(dir);
 
                 // Webhook（网络钩子）
-                webhook.append(String.format("%s\nhttp://localhost:%s%s/proj/%s/%s/deploy/webhook?token=%s\n\n", proj.getName(), port, ("/".equals(contextPath) ? "" : contextPath), group.getId(), proj.getId(), proj.getToken()));
+                String token = StringUtils.trim(proj.getToken());
+                if (StringUtils.isNotEmpty(token)) {
+                    webhook.append(String.format("%s - %s\nhttp://localhost:%s%s/proj/%s/%s/deploy/webhook?token=%s\n\n", proj.getGroupName(), proj.getName(), port, ("/".equals(contextPath) ? "" : contextPath), group.getId(), proj.getId(), proj.getToken()));
+                }
 
                 // 初始化仓库
                 log.debug("初始化本地仓库 { groupId={}, projId={}, projName={} } ...", group.getId(), proj.getId(), proj.getName());
@@ -360,7 +362,7 @@ public class ProjService implements ApplicationRunner, Runnable {
             sftp = new Sftp(server.getHost(), server.getPort(), server.getUser(), server.getPasswd(), Duration.ofMinutes(2));
 
             // 远程服务器项目路径
-            String projDir = String.format("quick-deploy/%s", proj.getId());
+            String projDir = String.format("quick-deploy/%s/%s", proj.getGroupId(), proj.getId());
 
             Sftp finalSftp = sftp;
             if (index == null) {
@@ -568,40 +570,61 @@ public class ProjService implements ApplicationRunner, Runnable {
         return map;
     }
 
-    public SseEmitter event() {
-        return emitterService.create(SecurityUtil.getUser().getUsername());
+    public SseEmitter event(String groupId) {
+        return emitterService.create(SecurityUtil.getUser().getUsername(), groupId);
     }
+
+    private long lastTime = 0;
 
     // 发送消息给所有客户端
     private void run0() {
         if (emitterService.isEmpty()) {
             return;
         }
-        Collection<Proj> projs = Collections.emptyList();
-        for (Proj proj : projs) {
-            Record lastRecord = proj.getLastRecord();
-            if (lastRecord == null) {
-                continue;
+
+        long currTime = System.currentTimeMillis();
+        if (currTime > lastTime + 5 * 1000) {
+            lastTime = currTime;
+            log.debug("emitters {}", emitterService);
+        }
+
+        emitterService.sendAll(emitter -> {
+            String groupId = emitter.getGroupId();
+            Group group = groups.get(groupId);
+            if (group == null) {
+                return;
             }
 
-            emitterService.sendAll("proj", Map.of("id", proj.getId(),
-                    "todayRecordCount", proj.getTodayRecordCount(),
-                    "lastRecord", Map.of("running", lastRecord.isRunning(),
-                            "final", lastRecord.isFinal(),
-                            "paused", lastRecord.isPaused(),
-                            "commit", SummaryDetail.builder()
-                                    .summary(Optional.ofNullable(lastRecord.getCommit()).map(Git.Commit::getSummary).orElse(null))
-                                    .detail(Optional.ofNullable(lastRecord.getCommit()).map(Git.Commit::getDetail).orElse(null))
-                                    .build(),
-                            "operator", SummaryDetail.builder()
-                                    .summary(StringUtils.join(lastRecord.getOperatorNicks(), "、"))
-                                    .detail(lastRecord.joinOperators("、"))
-                                    .build(),
-                            "time", DateTimeUtil.human(lastRecord.getStartTime()),
-                            "status", lastRecord.getStatus(),
-                            "duration", DurationUtil.human(lastRecord.getDuration()))
-            ));
-        }
+            Collection<Proj> projs = group.getProjs();
+            if (CollectionUtils.isEmpty(projs)) {
+                return;
+            }
+
+            for (Proj proj : projs) {
+                Record lastRecord = proj.getLastRecord();
+                if (lastRecord == null) {
+                    continue;
+                }
+
+                emitter.send("proj", Map.of("id", proj.getId(),
+                        "todayRecordCount", proj.getTodayRecordCount(),
+                        "lastRecord", Map.of("running", lastRecord.isRunning(),
+                                "final", lastRecord.isFinal(),
+                                "paused", lastRecord.isPaused(),
+                                "commit", SummaryDetail.builder()
+                                        .summary(Optional.ofNullable(lastRecord.getCommit()).map(Git.Commit::getSummary).orElse(null))
+                                        .detail(Optional.ofNullable(lastRecord.getCommit()).map(Git.Commit::getDetail).orElse(null))
+                                        .build(),
+                                "operator", SummaryDetail.builder()
+                                        .summary(StringUtils.join(lastRecord.getOperatorNicks(), "、"))
+                                        .detail(lastRecord.joinOperators("、"))
+                                        .build(),
+                                "time", DateTimeUtil.human(lastRecord.getStartTime()),
+                                "status", lastRecord.getStatus(),
+                                "duration", DurationUtil.human(lastRecord.getDuration()))
+                ));
+            }
+        });
     }
 
     @Override

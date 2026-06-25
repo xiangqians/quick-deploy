@@ -5,13 +5,18 @@ import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.collections4.MapUtils;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
+import org.xiangqian.quick.deploy.comp.ThreadPool;
 import org.xiangqian.quick.deploy.util.DateTimeUtil;
 import org.xiangqian.quick.deploy.util.UuidUtil;
 
 import java.time.LocalDateTime;
 import java.util.*;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
+import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
 /**
@@ -22,6 +27,9 @@ import java.util.stream.Collectors;
 @Service
 public class EmitterService {
 
+    @Autowired
+    private ThreadPool threadPool;
+
     private Map<String, Set<Emitter>> map;
 
     public EmitterService() {
@@ -29,8 +37,8 @@ public class EmitterService {
     }
 
     @SneakyThrows
-    public SseEmitter create(String key) {
-        Emitter emitter = new Emitter(key);
+    public SseEmitter create(String key, String groupId) {
+        Emitter emitter = new Emitter(key, groupId);
 
         Set<Emitter> value = null;
         synchronized (map) {
@@ -49,7 +57,7 @@ public class EmitterService {
         return emitter;
     }
 
-    public void send(String key, String name, Object data) {
+    public void send(String key, Consumer<Emitter> consumer) {
         Set<Emitter> value = null;
         synchronized (map) {
             value = map.get(key);
@@ -63,7 +71,7 @@ public class EmitterService {
             while (iterator.hasNext()) {
                 Emitter emitter = iterator.next();
                 try {
-                    emitter.send(name, data);
+                    consumer.accept(emitter);
                 } catch (Exception e) {
 //                    log.error("{} 发送异常", emitter, e);
                     try {
@@ -77,8 +85,11 @@ public class EmitterService {
         }
     }
 
-    public void sendAll(String name, Object data) {
-//        log.debug("{}", this);
+    public void send(String key, String name, Object data) {
+        send(key, emitter -> emitter.send(name, data));
+    }
+
+    public void sendAll(Consumer<Emitter> consumer) {
         Set<String> keys = null;
         synchronized (map) {
             if (MapUtils.isNotEmpty(map)) {
@@ -89,14 +100,27 @@ public class EmitterService {
             return;
         }
 
+        List<CompletableFuture<Void>> futures = new ArrayList<>();
         for (String key : keys) {
-            send(key, name, data);
+            CompletableFuture<Void> future = CompletableFuture.runAsync(() -> send(key, consumer), threadPool.getExecutor());
+            futures.add(future);
         }
+
+        try {
+//            CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).join();
+            CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).get(keys.size() * 2, TimeUnit.SECONDS);
+        } catch (Exception e) {
+            futures.forEach(future -> future.cancel(true));
+        }
+    }
+
+    public void sendAll(String name, Object data) {
+        sendAll(emitter -> emitter.send(name, data));
     }
 
     public boolean isEmpty() {
         synchronized (map) {
-            return map.isEmpty();
+            return map.isEmpty() || map.values().stream().allMatch(CollectionUtils::isEmpty);
         }
     }
 
@@ -120,16 +144,18 @@ public class EmitterService {
     }
 
     @Getter
-    private class Emitter extends SseEmitter {
+    public class Emitter extends SseEmitter {
         private final String uuid;
         private final String key;
+        private final String groupId;
 
-        public Emitter(String key) {
+        public Emitter(String key, String groupId) {
             // 设置超时时间（0 表示永不超时）
             super(0L);
 
             this.uuid = UuidUtil.random();
             this.key = key;
+            this.groupId = groupId;
 
             // 连接关闭时清理
             Runnable callback = () -> {
@@ -147,7 +173,8 @@ public class EmitterService {
             onTimeout(callback);
         }
 
-        public void send(String name, Object data) throws Exception {
+        @SneakyThrows
+        public void send(String name, Object data) {
             send(SseEmitter.event().name(name).data(data));
         }
 

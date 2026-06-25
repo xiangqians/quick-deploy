@@ -8,12 +8,10 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.ModelAndView;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 import org.springframework.web.servlet.view.RedirectView;
-import org.xiangqian.quick.deploy.model.Proj;
 import org.xiangqian.quick.deploy.service.ProjService;
 import org.xiangqian.quick.deploy.util.Git;
 import org.xiangqian.quick.deploy.util.SecurityUtil;
 
-import java.util.Collections;
 import java.util.List;
 
 /**
@@ -55,7 +53,7 @@ public class ProjController extends AbsController {
     @RequestMapping("/proj/{groupId}/{projId}/deploy/webhook")
     public Boolean webhookDeploy(@PathVariable("groupId") String groupId, @PathVariable("projId") String projId, @RequestParam(name = "token", required = false) String token) {
         SecurityUtil.setWebhookUser();
-        return projService.deploy(groupId, projId, "HEAD", proj -> StringUtils.equals(proj.getToken(), token));
+        return projService.deploy(groupId, projId, "HEAD", proj -> StringUtils.isNotEmpty(token) && StringUtils.equals(proj.getToken(), token));
     }
 
     @RequestMapping("/proj/{groupId}/{projId}/resume")
@@ -93,8 +91,8 @@ public class ProjController extends AbsController {
     // 3）自动重连：浏览器自动处理连接断开
     // 4）轻量级：相比 WebSocket 更简单
     @GetMapping(value = "/proj/{groupId}/event", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
-    public SseEmitter event() {
-        return projService.event();
+    public SseEmitter event(@PathVariable("groupId") String groupId) {
+        return projService.event(groupId);
     }
 
 }

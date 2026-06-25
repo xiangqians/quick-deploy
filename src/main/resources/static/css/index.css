@@ -169,15 +169,6 @@ tbody tr:hover {
     pointer-events: none; /* 防止点击干扰 */
 }
 
-.record-count {
-    font-size: 11px;
-    color: #666;
-    background: rgba(0, 0, 0, 0.05);
-    padding: 2px 4px;
-    border-radius: 4px;
-}
-
-
 .prepare {
     color: var(--color-prepare);
 }

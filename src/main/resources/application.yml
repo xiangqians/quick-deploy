@@ -12,7 +12,6 @@ server:
         max-age: PT12H
 
 dir: ./
-#dir: ./tmp
 
 spring:
   # 模板配置

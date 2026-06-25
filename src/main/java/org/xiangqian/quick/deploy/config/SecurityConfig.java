@@ -1,5 +1,9 @@
 package org.xiangqian.quick.deploy.config;
 
+import jakarta.servlet.FilterChain;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.http.HttpFilter;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -11,6 +15,9 @@ import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.web.servlet.config.annotation.ResourceHandlerRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
+import org.xiangqian.quick.deploy.util.SecurityUtil;
+
+import java.io.IOException;
 
 /**
  * @author xiangqian
@@ -38,14 +45,14 @@ public class SecurityConfig implements WebMvcConfigurer {
         return http
                 // 允许未经授权访问
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/login", "/error", "/proj/*/deploy/webhook", "/static/**").permitAll()
+                        .requestMatchers("/login", "/error", "/proj/*/*/deploy/webhook", "/static/**").permitAll()
                         .anyRequest().authenticated())
                 // 忽略 webhook 的 CSRF
-                .csrf(csrf -> csrf.ignoringRequestMatchers("/proj/*/deploy/webhook"))
+                .csrf(csrf -> csrf.ignoringRequestMatchers("/proj/*/*/deploy/webhook"))
                 // 登录配置
                 .formLogin(form -> form.loginPage("/login").defaultSuccessUrl("/", true).permitAll())
                 // 在认证之前注册一个过滤器
-                .addFilterBefore(new UsernamePasswordAuthenticationBeforeFilter(), UsernamePasswordAuthenticationFilter.class)
+                .addFilterBefore(new UsernamePasswdAuthBeforeFilter(), UsernamePasswordAuthenticationFilter.class)
                 // 处理 CSRF 异常，重定向到登录页
                 .exceptionHandling(exception -> exception.accessDeniedHandler((request, response, accessDeniedException) -> {
                     if ("POST".equals(request.getMethod()) && "/login".equals(request.getServletPath())) {
@@ -58,4 +65,21 @@ public class SecurityConfig implements WebMvcConfigurer {
                 .build();
     }
 
+    public static class UsernamePasswdAuthBeforeFilter extends HttpFilter {
+        @Override
+        protected void doFilter(HttpServletRequest request, HttpServletResponse response, FilterChain chain) throws IOException, ServletException {
+            String servletPath = request.getServletPath();
+            if (servletPath.matches("/proj/[^/]+/[^/]+/deploy/webhook")) {
+                chain.doFilter(request, response);
+                return;
+            }
+
+            if ("/login".equals(servletPath) && SecurityUtil.getUser() != null) {
+                String ctxPath = request.getContextPath();
+                response.sendRedirect(ctxPath + "/");
+                return;
+            }
+            chain.doFilter(request, response);
+        }
+    }
 }
