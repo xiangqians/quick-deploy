@@ -300,8 +300,8 @@
             // commit
             let tdElem = trElem.querySelector('td[name="commit"]');
             const commit = lastRecord.commit;
-            tdElem.textContent = commit.summary;
-            tdElem.title = commit.detail;
+            tdElem.textContent = commit.summary ?? '-';
+            tdElem.title = commit.detail ?? '';
 
             // operator
             tdElem = trElem.querySelector('td[name="operator"]');
