@@ -2,6 +2,7 @@ package org.xiangqian.quick.deploy.model;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import lombok.*;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.io.file.PathUtils;
 import org.eclipse.jgit.errors.RepositoryNotFoundException;
@@ -19,6 +20,7 @@ import java.util.function.Consumer;
  * @date 2026/01/19 12:10
  */
 @Data
+@Slf4j
 public class Repo {
     // 地址
     private String url;
@@ -65,10 +67,8 @@ public class Repo {
         }
 
         if (!git.branch().equals(branch)) {
-            git.reset(Git.HEAD, $ -> {
-            });
-            git.checkout(branch, $ -> {
-            });
+            git.reset(Git.HEAD, log::debug);
+            git.checkout(branch, log::debug);
         }
 
         return true;

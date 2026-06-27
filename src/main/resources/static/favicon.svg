@@ -28,7 +28,7 @@
     <!-- 字母 QD 组合，居中显示 -->
     <text x="32" y="42" font-family="'Segoe UI', 'Inter', 'Poppins', Arial, sans-serif" font-weight="800" font-size="36"
           text-anchor="middle" fill="url(#letterGrad)" filter="url(#glow)">
-        Qᴰ
+        Q
     </text>
 
     <!-- 外框微光边框 -->

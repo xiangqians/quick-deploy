@@ -69,7 +69,7 @@ public class ProjService implements ApplicationRunner, Runnable {
                 // Webhook（网络钩子）
                 String token = StringUtils.trim(proj.getToken());
                 if (StringUtils.isNotEmpty(token)) {
-                    webhook.append(String.format("%s - %s\nhttp://localhost:%s%s/proj/%s/%s/{branch}/deploy/webhook?token=%s\n\n", proj.getGroupName(), proj.getName(), port, ("/".equals(contextPath) ? "" : contextPath), group.getId(), proj.getId(), proj.getToken()));
+                    webhook.append(String.format("%s - %s\nhttp://localhost:%s%s/proj/%s/%s/deploy/webhook?token=%s\n\n", proj.getGroupName(), proj.getName(), port, ("/".equals(contextPath) ? "" : contextPath), group.getId(), proj.getId(), proj.getToken()));
                 }
 
                 // 初始化仓库

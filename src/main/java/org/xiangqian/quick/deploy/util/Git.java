@@ -136,11 +136,15 @@ public class Git implements Closeable {
     /**
      * $ git checkout -b <branch>
      *
-     * @return
+     * @param branch
+     * @param consumer
      * @throws Exception
      */
     public void checkout(String branch, Consumer<String> consumer) throws Exception {
-        Ref ref = git.checkout().setName(branch).call();
+        Ref ref = git.checkout()
+                .setCreateBranch(true) // 允许创建新分支
+                .setName(branch)
+                .call();
         consumer.accept(ref.getName());
     }
 
