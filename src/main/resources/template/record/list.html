@@ -27,7 +27,6 @@
     </tbody>
 </table>
 <th:block th:fragment="item(projId, record)" th:if="${record}" th:with="commit=${record.commit},status=${record.status}">
-    <td name="branch" th:if="${commit}" th:text="'dev'">
     <td name="branch" th:unless="${commit}">-</td>
     <td name="commit" th:if="${commit}" th:text="${commit.summary}" th:title="${commit.detail}">
     <td name="commit" th:unless="${commit}">-</td>

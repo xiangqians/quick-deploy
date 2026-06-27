@@ -5,9 +5,9 @@
     <link rel="icon" type="image/svg+xml" th:href="@{/static/favicon.svg}"/>
     <link rel="stylesheet" type="text/css" th:href="@{/static/css/body.css}"/>
     <link rel="stylesheet" type="text/css" th:href="@{/static/css/index.css}"/>
-    <title th:text="'首页 - ' + ${group.name}"></title>
+    <title th:text="'首页 - ' + ${user.group.name}"></title>
 </head>
-<body th:context-path="@{/}" th:group-id="${group.id}" th:group-name="${group.name}">
+<body th:context-path="@{/}" th:group-id="${user.group.id}" th:group-name="${user.group.name}">
 
 <h2 th:text="${user.nick}" style="display: inline;"></h2>
 <form id="logout" class="hidden" th:action="@{'/logout?t=' + ${timestamp}}" method="post">
@@ -17,10 +17,10 @@
 <a style="float: right; margin-right: 10px;" href="https://github.com/xiangqians/quick-deploy/releases/tag/2.0.0" target="_blank">GitHub</a>
 <br>
 <br>
-<div class="tab-wrap" th:with="currGroupId=${group.id}">
+<div class="tab-wrap">
     <a class="tab-item"
        th:each="group : ${groups}"
-       th:classappend="${group.id == currGroupId} ? ' active' : ''"
+       th:classappend="${group.id == user.group.id} ? ' active' : ''"
        th:href="@{'/?groupId=' + ${group.id} + '&t=' + ${timestamp}}"
        th:text="${group.name}"></a>
 </div>
@@ -30,21 +30,15 @@
         <th rowspan="2">名称</th>
         <th rowspan="2">Git仓库</th>
         <th rowspan="2">服务器</th>
-        <th colspan="6">最近一次部署记录</th>
-        <th rowspan="1" style="border-bottom: none;"></th>
-        <th colspan="3">操作</th>
+        <th colspan="5">最近一次部署记录</th>
+        <th rowspan="2">操作</th>
     </tr>
     <tr>
-        <th>分支</th>
         <th>提交</th>
         <th>操作者</th>
         <th>时间</th>
         <th>状态</th>
         <th>耗时</th>
-        <th></th>
-        <th>分支</th>
-        <th>提交</th>
-        <th></th>
     </tr>
     </thead>
     <tbody>
@@ -53,53 +47,34 @@
         <td th:title="'今日部署 ' + ${proj.todayRecordCount} + ' 次'">
             <a name="name" th:text="${proj.name}" th:href="@{'/proj/' + ${proj.groupId} + '/' + ${proj.id} +'/record/list?t=' + ${timestamp}}" target="_blank"></a>
         </td>
-        <td class="nowrap"><span th:text="${repo.url}"></span></td>
+        <td class="nowrap" th:text="${repo.url} + '@' + ${repo.branch}"></td>
         <td class="nowrap" th:text="${server.user + '@' + server.host + ':' + server.port}"></td>
         <div th:replace="~{record/list :: item(groupId=${proj.groupId}, projId=${proj.id}, record=${lastRecord})}"></div>
         <th:block th:unless="${lastRecord}">
-            <td name="branch">-</td>
             <td name="commit">-</td>
             <td name="operator" class="nowrap">-</td>
             <td name="time" class="nowrap">-</td>
             <td name="status" class="nowrap"><a th:href="@{'/proj/' + ${proj.groupId} + '/' + ${proj.id} + '/record/{recordId}/log?t=' + ${timestamp}}" target="_blank">-</a></td>
             <td name="duration" class="nowrap">-</td>
         </th:block>
-        <td class="nowrap"></td>
-        <th:block th:with="running=${lastRecord?.running ?: false},paused=${lastRecord?.paused ?: false},final=${lastRecord?.final ?: true}">
-            <td class="nowrap">
-                <div class="select">
-                    <div class="trigger" data-value="jzy/20260603165802_2" title="">jzy/20260603165802_2</div>
-                    <ul class="dropdown">
-                        <li th:each="branch : ${repo.branches}"
-                            class="option"
-                            th:classappend="${branch == 'jzy/20260603165802_2'} ? ' active' : ''"
-                            th:data-value="${branch}"
-                            th:text="${branch}"></li>
-                    </ul>
-                </div>
-            </td>
-            <td class="nowrap">
-                <!-- 下拉框 -->
-                <div class="select" name="lastCommits" th:with="lastCommits=${repo.lastCommits}">
-                    <!-- 触发按钮 -->
-                    <div class="trigger" data-value="HEAD" title="">HEAD</div>
-                    <!-- 下拉列表 -->
-                    <ul class="dropdown">
-                        <li class="option active" data-value="HEAD" title="">HEAD</li>
-                        <th:block th:if="${lastCommits != null}" th:each="commit : ${lastCommits}">
-                            <li class="option" th:data-value="${commit.id}" th:text="${commit.shortMsg}"
-                                th:title="${commit.detail}"></li>
-                        </th:block>
-                    </ul>
-                </div>
-            </td>
-            <td class="op nowrap" style="text-align: left;" th:with="running=${lastRecord?.running ?: false},paused=${lastRecord?.paused ?: false},final=${lastRecord?.final ?: true}">
-<!--                <a name="pull" th:class="${final ? 'visible' : 'hidden'}" th:href="@{'/proj/' + ${proj.groupId} + '/' + ${proj.id} +'/pull?t=' + ${timestamp}}">拉取</a>-->
-                <a name="deploy" th:class="${final ? 'visible' : 'hidden'}" th:href="@{'/proj/' + ${proj.groupId} + '/' + ${proj.id} +'/{commitId}/deploy?t=' + ${timestamp}}">部署</a>
-                <a name="resume" th:class="${paused ? 'visible' : 'hidden'}" th:href="@{'/proj/' + ${proj.groupId} + '/' + ${proj.id} +'/resume?t=' + ${timestamp}}">继续</a>
-                <a name="abort" th:class="${running ? 'visible' : 'hidden'}" th:href="@{'/proj/' + ${proj.groupId} + '/' + ${proj.id} +'/abort?t=' + ${timestamp}}">中止</a>
-            </td>
-        </th:block>
+        <td class="op nowrap" style="text-align: left;"
+            th:with="running=${lastRecord?.running ?: false},paused=${lastRecord?.paused ?: false},final=${lastRecord?.final ?: true}">
+            <!-- 下拉框 -->
+            <div class="select" name="lastCommits" th:with="lastCommits=${repo.lastCommits}">
+                <!-- 触发按钮 -->
+                <div class="trigger" data-value="HEAD" title="">HEAD</div>
+                <!-- 下拉列表 -->
+                <ul class="dropdown">
+                    <li class="option active" data-value="HEAD" title="">HEAD</li>
+                    <th:block th:if="${lastCommits != null}" th:each="commit : ${lastCommits}">
+                        <li class="option" th:data-value="${commit.id}" th:text="${commit.shortMsg}" th:title="${commit.detail}"></li>
+                    </th:block>
+                </ul>
+            </div>
+            <a name="deploy" th:class="${final ? 'visible' : 'hidden'}" th:href="@{'/proj/' + ${proj.groupId} + '/' + ${proj.id} +'/{commitId}/deploy?t=' + ${timestamp}}">部署</a>
+            <a name="resume" th:class="${paused ? 'visible' : 'hidden'}" th:href="@{'/proj/' + ${proj.groupId} + '/' + ${proj.id} +'/resume?t=' + ${timestamp}}">继续</a>
+            <a name="abort" th:class="${running ? 'visible' : 'hidden'}" th:href="@{'/proj/' + ${proj.groupId} + '/' + ${proj.id} +'/abort?t=' + ${timestamp}}">中止</a>
+        </td>
     </tr>
     </tbody>
 </table>
@@ -264,7 +239,7 @@
         });
 
         // 获取操作链接
-        document.querySelectorAll('a[name="pull"],a[name="deploy"],a[name="resume"],a[name="abort"]').forEach(aElem => {
+        document.querySelectorAll('a[name="deploy"],a[name="resume"],a[name="abort"]').forEach(aElem => {
             aElem.addEventListener('click', function (event) {
                 // 组名称
                 const groupName = document.body.getAttribute('group-name');
@@ -316,7 +291,7 @@
             trElem.querySelector('[name="name"]').parentElement.title = `今日部署 ${proj.todayRecordCount} 次`;
 
             // <a>
-            trElem.querySelectorAll('a[name="pull"],a[name="deploy"]').forEach(aElem => {
+            trElem.querySelectorAll('a[name="deploy"]').forEach(aElem => {
                 aElem.className = lastRecord.final ? 'visible' : 'hidden';
             });
             trElem.querySelector('a[name="resume"]').className = lastRecord.paused ? 'visible' : 'hidden';

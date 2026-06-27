@@ -53,13 +53,9 @@ public class ProjService implements ApplicationRunner, Runnable {
     public ProjService(@Value("${server.port}") Integer port, @Value("${server.servlet.context-path}") String contextPath, @Value("${dir}") String dir) throws Exception {
         // 加载项目组信息
         groups = YamlUtil.deser(Path.of(dir, "proj.yml").toFile(), new TypeReference<List<Group>>() {
-                }).stream()
-                .filter(group -> Optional.ofNullable(group.getEnabled()).orElse(true))
-                .collect(Collectors.toMap(Group::getId, Function.identity(), (oldGroup, newGroup) -> {
-                    throw new IllegalStateException(String.format("Duplicate group ids [{id=%s, name=%s}, {id=%s, name=%s}]",
-                            oldGroup.getId(), oldGroup.getName(),
-                            newGroup.getId(), newGroup.getName()));
-                }, LinkedHashMap::new));
+        }).stream().filter(group -> Optional.ofNullable(group.getEnabled()).orElse(true)).collect(Collectors.toMap(Group::getId, Function.identity(), (oldGroup, newGroup) -> {
+            throw new IllegalStateException(String.format("Duplicate group ids [{id=%s, name=%s}, {id=%s, name=%s}]", oldGroup.getId(), oldGroup.getName(), newGroup.getId(), newGroup.getName()));
+        }, LinkedHashMap::new));
 
         StringBuilder webhook = new StringBuilder();
         for (Group group : groups.values()) {
@@ -73,7 +69,7 @@ public class ProjService implements ApplicationRunner, Runnable {
                 // Webhook（网络钩子）
                 String token = StringUtils.trim(proj.getToken());
                 if (StringUtils.isNotEmpty(token)) {
-                    webhook.append(String.format("%s - %s\nhttp://localhost:%s%s/proj/%s/%s/deploy/webhook?token=%s\n\n", proj.getGroupName(), proj.getName(), port, ("/".equals(contextPath) ? "" : contextPath), group.getId(), proj.getId(), proj.getToken()));
+                    webhook.append(String.format("%s - %s\nhttp://localhost:%s%s/proj/%s/%s/{branch}/deploy/webhook?token=%s\n\n", proj.getGroupName(), proj.getName(), port, ("/".equals(contextPath) ? "" : contextPath), group.getId(), proj.getId(), proj.getToken()));
                 }
 
                 // 初始化仓库
@@ -124,14 +120,10 @@ public class ProjService implements ApplicationRunner, Runnable {
                 groupId = groups.keySet().iterator().next();
             }
         }
-        Group group = Group.builder()
-                .id(groupId)
-                .name(Optional.ofNullable(groups.get(groupId)).map(Group::getName).orElse(null))
-                .build();
+        Group group = Group.builder().id(groupId).name(Optional.ofNullable(groups.get(groupId)).map(Group::getName).orElse(null)).build();
         securityUser.setGroup(group);
 
-        Map<String, Object> map = new HashMap<>(3, 1f);
-        map.put("group", group);
+        Map<String, Object> map = new HashMap<>(2, 1f);
         map.put("groups", groups.values().stream().map(Group::copy).collect(Collectors.toList()));
 
         Collection<Proj> projs = Optional.ofNullable(groups.get(groupId)).map(Group::getProjs).orElse(null);
@@ -146,6 +138,8 @@ public class ProjService implements ApplicationRunner, Runnable {
 
         return map;
     }
+
+    // 第一次获取时，就自动拉去最新代码了。 --- 待处理
 
     public List<Git.Commit> prevCommits(String groupId, String projId, String commitId) {
         Proj proj = getProj(groupId, projId);
@@ -172,7 +166,7 @@ public class ProjService implements ApplicationRunner, Runnable {
 
         try {
             Repo repo = proj.getGit().getRepo();
-            repo.reset("HEAD", log::debug);
+            repo.reset(Git.HEAD, log::debug);
             repo.pull(log::debug);
             return true;
         } finally {
@@ -194,9 +188,7 @@ public class ProjService implements ApplicationRunner, Runnable {
         String operator = securityUser.getUsername();
         String firstOperator = Optional.ofNullable(lastRecord).map(Record::getFirstOperator).map(User::getName).orElse(null);
         if (!locked) {
-            if (User.WEBHOOK.getName().equals(operator)
-                    && operator.equals(firstOperator)
-                    && Boolean.TRUE.equals(Optional.ofNullable(lastRecord).map(Record::isRunning).orElse(null))) {
+            if (User.WEBHOOK.getName().equals(operator) && operator.equals(firstOperator) && Boolean.TRUE.equals(Optional.ofNullable(lastRecord).map(Record::isRunning).orElse(null))) {
                 abort(proj);
                 asyncDeploy(groupId, projId, commitId, validator);
                 return true;
@@ -204,9 +196,7 @@ public class ProjService implements ApplicationRunner, Runnable {
             return false;
         }
 
-        if (User.WEBHOOK.getName().equals(operator)
-                && operator.equals(firstOperator)
-                && Boolean.TRUE.equals(Optional.ofNullable(lastRecord).map(Record::isPaused).orElse(null))) {
+        if (User.WEBHOOK.getName().equals(operator) && operator.equals(firstOperator) && Boolean.TRUE.equals(Optional.ofNullable(lastRecord).map(Record::isPaused).orElse(null))) {
             proj.unlock();
             abort(proj);
             asyncDeploy(groupId, projId, commitId, validator);
@@ -279,10 +269,10 @@ public class ProjService implements ApplicationRunner, Runnable {
 
         record.addPullStage();
         Repo repo = proj.getGit().getRepo();
-        repo.reset("HEAD", $ -> {
+        repo.reset(Git.HEAD, $ -> {
         });
         String commitId = record.getCommitId();
-        if ("HEAD".equals(commitId)) {
+        if (Git.HEAD.equals(commitId)) {
             record.appendLog("Local$ git pull", outer -> repo.pull(outer::outLn));
         } else {
             record.appendLog(String.format("Local$ git reset --hard %s", commitId), outer -> repo.reset(commitId, outer::outLn));
@@ -333,10 +323,7 @@ public class ProjService implements ApplicationRunner, Runnable {
                 }
             }
 
-            List<String> ntargets = targets.entrySet().stream()
-                    .filter(entry -> entry.getValue() == null)
-                    .map(Map.Entry::getKey)
-                    .collect(Collectors.toList());
+            List<String> ntargets = targets.entrySet().stream().filter(entry -> entry.getValue() == null).map(Map.Entry::getKey).collect(Collectors.toList());
             if (CollectionUtils.isNotEmpty(ntargets)) {
                 throw new Exception("未找到目标文件：" + ntargets.stream().collect(Collectors.joining("、")));
             }
@@ -577,7 +564,7 @@ public class ProjService implements ApplicationRunner, Runnable {
     }
 
     public SseEmitter event(String groupId) {
-        return emitterService.create(SecurityUtil.getUser().getUser().getName(), groupId);
+        return emitterService.create(SecurityUtil.getUser().getName(), groupId);
     }
 
     private long lastTime = 0;
@@ -612,23 +599,7 @@ public class ProjService implements ApplicationRunner, Runnable {
                     continue;
                 }
 
-                emitter.send("proj", Map.of("id", proj.getId(),
-                        "todayRecordCount", proj.getTodayRecordCount(),
-                        "lastRecord", Map.of("running", lastRecord.isRunning(),
-                                "final", lastRecord.isFinal(),
-                                "paused", lastRecord.isPaused(),
-                                "commit", SummaryDetail.builder()
-                                        .summary(Optional.ofNullable(lastRecord.getCommit()).map(Git.Commit::getSummary).orElse(null))
-                                        .detail(Optional.ofNullable(lastRecord.getCommit()).map(Git.Commit::getDetail).orElse(null))
-                                        .build(),
-                                "operator", SummaryDetail.builder()
-                                        .summary(StringUtils.join(lastRecord.getOperatorNicks(), "、"))
-                                        .detail(lastRecord.joinOperators("、"))
-                                        .build(),
-                                "time", DateTimeUtil.human(lastRecord.getStartTime()),
-                                "status", lastRecord.getStatus(),
-                                "duration", DurationUtil.human(lastRecord.getDuration()))
-                ));
+                emitter.send("proj", Map.of("id", proj.getId(), "todayRecordCount", proj.getTodayRecordCount(), "lastRecord", Map.of("running", lastRecord.isRunning(), "final", lastRecord.isFinal(), "paused", lastRecord.isPaused(), "commit", SummaryDetail.builder().summary(Optional.ofNullable(lastRecord.getCommit()).map(Git.Commit::getSummary).orElse(null)).detail(Optional.ofNullable(lastRecord.getCommit()).map(Git.Commit::getDetail).orElse(null)).build(), "operator", SummaryDetail.builder().summary(StringUtils.join(lastRecord.getOperatorNicks(), "、")).detail(lastRecord.joinOperators("、")).build(), "time", DateTimeUtil.human(lastRecord.getStartTime()), "status", lastRecord.getStatus(), "duration", DurationUtil.human(lastRecord.getDuration()))));
             }
         });
     }

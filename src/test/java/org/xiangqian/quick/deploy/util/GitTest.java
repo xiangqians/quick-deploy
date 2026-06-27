@@ -58,7 +58,7 @@ public class GitTest {
     @Test
     public void reset() throws Exception {
         String commitId = "df57331290bea8025aaa475c0a837e7c8f333c3f";
-//        commitId = "HEAD";
+//        commitId = Git.HEAD;
         git.reset(commitId, System.out::println);
     }
 
@@ -72,7 +72,7 @@ public class GitTest {
     public void log2() throws Exception {
 //        String commitId = "75e18d04a19d1a56b13be6c7e5bc8b07c1c4a111";
 //        String commitId = "4d851ab0624ce4e3edf1a88a2c9dbe9f7b6f89ff";
-        String commitId = "HEAD";
+        String commitId = Git.HEAD;
         git.log(commitId, 2).forEach(commit -> System.out.println(commit + "\n"));
     }
 

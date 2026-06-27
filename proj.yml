@@ -37,10 +37,7 @@
           # 地址
           url: http://mygit.org/example/java-test.git
           # 分支
-          branches:
-            - dev
-            - test
-            - prod
+          branches: dev
       # 构建
       build:
         # 命令集
@@ -71,10 +68,7 @@
       git:
         repo:
           url: http://mygit.org/example/java-test.git
-          branches:
-            - dev
-            - test
-            - prod
+          branch: dev
       build:
         cmds:
           - run: mvn.cmd package -Dmaven.test.skip=true -Dproject.build.sourceEncoding=UTF-8 -Dproject.reporting.outputEncoding=UTF-8 -Dfile.encoding=UTF-8
@@ -104,10 +98,7 @@
         passwd: mypasswd
         repo:
           url: http://mygit.org/example/vue-test.git
-          branches:
-            - dev
-            - test
-            - prod
+          branch: dev
       server:
         host: myserver
         port: 22

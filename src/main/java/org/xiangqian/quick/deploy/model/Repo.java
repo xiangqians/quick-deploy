@@ -23,7 +23,7 @@ public class Repo {
     // 地址
     private String url;
     // 分支列表
-    private List<String> branches;
+    private String branch;
     // 用户
     private String user;
     // 密码
@@ -64,12 +64,9 @@ public class Repo {
             return false;
         }
 
-        String branch = branches.get(0);
         if (!git.branch().equals(branch)) {
-            git.reset("HEAD", $ -> {
+            git.reset(Git.HEAD, $ -> {
             });
-//            git.pull($ -> {
-//            });
             git.checkout(branch, $ -> {
             });
         }
@@ -78,7 +75,6 @@ public class Repo {
     }
 
     private void clone(Path dir) throws Exception {
-        String branch = branches.get(0);
         git = Git.clone(dir, url, branch, user, passwd);
     }
 

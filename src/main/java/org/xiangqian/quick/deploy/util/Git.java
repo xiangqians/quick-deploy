@@ -40,6 +40,8 @@ import java.util.function.Consumer;
  */
 public class Git implements Closeable {
 
+    public static String HEAD = "HEAD";
+
     private Path dir;
     private org.eclipse.jgit.api.Git git;
 

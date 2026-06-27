@@ -13,7 +13,6 @@ import java.util.Collections;
  */
 @Getter
 public class SecurityUser extends org.springframework.security.core.userdetails.User {
-
     @Setter
     private Group group;
 
@@ -22,5 +21,13 @@ public class SecurityUser extends org.springframework.security.core.userdetails.
     public SecurityUser(User user) {
         super(user.getName(), user.getPasswd(), Collections.emptyList());
         this.user = user;
+    }
+
+    public String getNick() {
+        return user.getNick();
+    }
+
+    public String getName() {
+        return user.getName();
     }
 }

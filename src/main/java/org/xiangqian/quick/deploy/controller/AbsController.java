@@ -33,7 +33,7 @@ public abstract class AbsController {
     // 在每个请求之前设置ModelAndView值
     @ModelAttribute
     public void modelAttribute(ModelAndView modelAndView) {
-        modelAndView.addObject("user", Optional.ofNullable(SecurityUtil.getUser()).map(SecurityUser::getUser).orElse(null));
+        modelAndView.addObject("user", Optional.ofNullable(SecurityUtil.getUser()).orElse(null));
         modelAndView.addObject("timestamp", System.currentTimeMillis());
     }
 
