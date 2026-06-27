@@ -6,13 +6,13 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.xiangqian.quick.deploy.model.User;
 
-import java.util.Collections;
-
 /**
  * @author xiangqian
  * @date 2024/03/02 15:26
  */
 public class SecurityUtil {
+
+    private static ThreadLocal<SecurityUser> threadLocal = new ThreadLocal<>();
 
     /**
      * 获取已通过身份验证的用户信息
@@ -20,6 +20,11 @@ public class SecurityUtil {
      * @return
      */
     public static SecurityUser getUser() {
+        SecurityUser user = threadLocal.get();
+        if (user != null) {
+            return user;
+        }
+
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
 
         // 匿名用户（表示用户未登录）
@@ -35,13 +40,18 @@ public class SecurityUtil {
         return null;
     }
 
-    public static void setUser(SecurityUser user) {
+    @Deprecated
+    private static void setUser(SecurityUser user) {
         UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(user, null, user.getAuthorities());
         SecurityContextHolder.getContext().setAuthentication(authentication);
     }
 
     public static void setWebhookUser() {
-        setUser(new SecurityUser(User.WEBHOOK));
+        threadLocal.set(new SecurityUser(User.WEBHOOK));
+    }
+
+    public static void removeWebhookUser() {
+        threadLocal.remove();
     }
 
 }

@@ -232,7 +232,10 @@ public class ProjService implements ApplicationRunner, Runnable {
                 TimeUnit.SECONDS.sleep(1);
                 SecurityUtil.setWebhookUser();
                 deploy(groupId, projId, commitId, validator);
-            } catch (InterruptedException e) {
+            } catch (Exception e) {
+                log.error(e.getMessage(), e);
+            } finally {
+                SecurityUtil.removeWebhookUser();
             }
         }).start();
     }

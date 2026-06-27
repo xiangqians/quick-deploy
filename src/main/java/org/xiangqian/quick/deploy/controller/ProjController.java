@@ -52,8 +52,12 @@ public class ProjController extends AbsController {
     @ResponseBody
     @RequestMapping("/proj/{groupId}/{projId}/deploy/webhook")
     public Boolean webhookDeploy(@PathVariable("groupId") String groupId, @PathVariable("projId") String projId, @RequestParam(name = "token", required = false) String token) {
-        SecurityUtil.setWebhookUser();
-        return projService.deploy(groupId, projId, "HEAD", proj -> StringUtils.isNotEmpty(token) && StringUtils.equals(proj.getToken(), token));
+        try {
+            SecurityUtil.setWebhookUser();
+            return projService.deploy(groupId, projId, "HEAD", proj -> StringUtils.isNotEmpty(token) && StringUtils.equals(proj.getToken(), token));
+        } finally {
+            SecurityUtil.removeWebhookUser();
+        }
     }
 
     @RequestMapping("/proj/{groupId}/{projId}/resume")
