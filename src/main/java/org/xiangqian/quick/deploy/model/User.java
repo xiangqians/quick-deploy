@@ -19,6 +19,8 @@ import java.util.Objects;
 @NoArgsConstructor
 @AllArgsConstructor
 public class User {
+    public static final User WEBHOOK = User.builder().nick("Webhook").name("webhook").passwd("webhook").build();
+
     // 昵称
     private String nick;
     // 用户名

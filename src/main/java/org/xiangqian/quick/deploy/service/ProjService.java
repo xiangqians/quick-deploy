@@ -1,7 +1,6 @@
 package org.xiangqian.quick.deploy.service;
 
 import com.fasterxml.jackson.core.type.TypeReference;
-import jakarta.servlet.http.HttpSession;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.collections4.CollectionUtils;
@@ -115,10 +114,11 @@ public class ProjService implements ApplicationRunner, Runnable {
     }
 
     public Map<String, Object> list(String groupId) {
+        SecurityUser securityUser = SecurityUtil.getUser();
         groupId = StringUtils.trim(groupId);
-        HttpSession session = WebUtil.getSession();
         if (StringUtils.isEmpty(groupId)) {
-            if (session.getAttribute("group") instanceof Group group) {
+            Group group = securityUser.getGroup();
+            if (group != null) {
                 groupId = group.getId();
             } else if (MapUtils.isNotEmpty(groups)) {
                 groupId = groups.keySet().iterator().next();
@@ -128,7 +128,7 @@ public class ProjService implements ApplicationRunner, Runnable {
                 .id(groupId)
                 .name(Optional.ofNullable(groups.get(groupId)).map(Group::getName).orElse(null))
                 .build();
-        session.setAttribute("group", group);
+        securityUser.setGroup(group);
 
         Map<String, Object> map = new HashMap<>(3, 1f);
         map.put("group", group);
@@ -187,12 +187,14 @@ public class ProjService implements ApplicationRunner, Runnable {
             return false;
         }
 
+        SecurityUser securityUser = SecurityUtil.getUser();
+
         boolean locked = proj.tryLock();
         Record lastRecord = proj.getLastRecord();
-        String operator = SecurityUtil.getUser().getUsername();
+        String operator = securityUser.getUsername();
         String firstOperator = Optional.ofNullable(lastRecord).map(Record::getFirstOperator).map(User::getName).orElse(null);
         if (!locked) {
-            if ("webhook".equals(operator)
+            if (User.WEBHOOK.getName().equals(operator)
                     && operator.equals(firstOperator)
                     && Boolean.TRUE.equals(Optional.ofNullable(lastRecord).map(Record::isRunning).orElse(null))) {
                 abort(proj);
@@ -202,7 +204,7 @@ public class ProjService implements ApplicationRunner, Runnable {
             return false;
         }
 
-        if ("webhook".equals(operator)
+        if (User.WEBHOOK.getName().equals(operator)
                 && operator.equals(firstOperator)
                 && Boolean.TRUE.equals(Optional.ofNullable(lastRecord).map(Record::isPaused).orElse(null))) {
             proj.unlock();
@@ -223,7 +225,7 @@ public class ProjService implements ApplicationRunner, Runnable {
         record.setLogFile(proj.getRecordLogFile(record));
         record.addPrepareStage();
         record.setCommitId(commitId);
-        record.addOperator(userService.getByName(operator));
+        record.addOperator(securityUser.getUser());
         record.setCloseable(null);
         record.setTargets(null);
 
@@ -503,7 +505,7 @@ public class ProjService implements ApplicationRunner, Runnable {
 
         Record record = proj.getLastRecord();
         if (record.resume()) {
-            record.addOperator(userService.getByName(SecurityUtil.getUser().getUsername()));
+            record.addOperator(SecurityUtil.getUser().getUser());
             asyncDeploy(proj, record);
             return true;
         }
@@ -523,7 +525,7 @@ public class ProjService implements ApplicationRunner, Runnable {
     private Boolean abort(Proj proj) {
         Record record = proj.getLastRecord();
         if (record != null) {
-            record.addOperator(userService.getByName(SecurityUtil.getUser().getUsername()));
+            record.addOperator(SecurityUtil.getUser().getUser());
             if (record.abort()) {
                 proj.writeRecordsJsonFile();
                 return true;
@@ -575,7 +577,7 @@ public class ProjService implements ApplicationRunner, Runnable {
     }
 
     public SseEmitter event(String groupId) {
-        return emitterService.create(SecurityUtil.getUser().getUsername(), groupId);
+        return emitterService.create(SecurityUtil.getUser().getUser().getName(), groupId);
     }
 
     private long lastTime = 0;

@@ -12,15 +12,14 @@ import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.xiangqian.quick.deploy.model.User;
+import org.xiangqian.quick.deploy.util.SecurityUser;
 import org.xiangqian.quick.deploy.util.YamlUtil;
 
 import java.nio.file.Path;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 /**
  * @author xiangqian
@@ -40,28 +39,26 @@ public class UserService implements UserDetailsService {
     @SneakyThrows
     @PostConstruct
     public void init() {
-        users = Stream.concat(YamlUtil.deser(Path.of(dir, "user.yml").toFile(), new TypeReference<List<User>>() {
-                        }).stream(),
-                        Stream.of(User.builder().nick("Webhook").name("webhook").passwd("webhook").build()))
+        users = YamlUtil.deser(Path.of(dir, "user.yml").toFile(), new TypeReference<List<User>>() {
+                }).stream()
                 .map(user -> {
                     user.setPasswd(passwordEncoder.encode(user.getPasswd()));
                     return user;
                 })
                 .collect(Collectors.toMap(User::getName, Function.identity()));
+
+        User webhook = User.WEBHOOK;
+        webhook.setPasswd(passwordEncoder.encode(webhook.getPasswd()));
+        users.put(webhook.getName(), webhook);
     }
 
     @Override
     public UserDetails loadUserByUsername(String name) throws UsernameNotFoundException {
         User user = null;
         name = StringUtils.trim(name);
-        if ("webhook".equals(name) || (user = users.get(name)) == null) {
+        if (User.WEBHOOK.getName().equals(name) || (user = users.get(name)) == null) {
             throw new UsernameNotFoundException("user '" + name + "' not found");
         }
-        return new org.springframework.security.core.userdetails.User(user.getName(), user.getPasswd(), Collections.emptyList());
+        return new SecurityUser(user);
     }
-
-    public User getByName(String name) {
-        return users.get(name);
-    }
-
 }

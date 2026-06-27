@@ -2,11 +2,11 @@ package org.xiangqian.quick.deploy.controller;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.security.core.userdetails.User;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.servlet.ModelAndView;
 import org.springframework.web.servlet.view.RedirectView;
 import org.xiangqian.quick.deploy.service.UserService;
+import org.xiangqian.quick.deploy.util.SecurityUser;
 import org.xiangqian.quick.deploy.util.SecurityUtil;
 
 import java.util.Optional;
@@ -33,7 +33,7 @@ public abstract class AbsController {
     // 在每个请求之前设置ModelAndView值
     @ModelAttribute
     public void modelAttribute(ModelAndView modelAndView) {
-        modelAndView.addObject("user", Optional.ofNullable(SecurityUtil.getUser()).map(User::getUsername).map(userService::getByName).orElse(null));
+        modelAndView.addObject("user", Optional.ofNullable(SecurityUtil.getUser()).map(SecurityUser::getUser).orElse(null));
         modelAndView.addObject("timestamp", System.currentTimeMillis());
     }
 
