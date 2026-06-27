@@ -112,6 +112,16 @@ public class Git implements Closeable {
     }
 
     /**
+     * $ git remote -v
+     *
+     * @return
+     * @throws Exception
+     */
+    public String remote() throws Exception {
+        return getRepo().getConfig().getString("remote", "origin", "url");
+    }
+
+    /**
      * $ git branch
      *
      * @return
@@ -119,6 +129,17 @@ public class Git implements Closeable {
      */
     public String branch() throws Exception {
         return getRepo().getBranch();
+    }
+
+    /**
+     * $ git checkout -b <branch>
+     *
+     * @return
+     * @throws Exception
+     */
+    public void checkout(String branch, Consumer<String> consumer) throws Exception {
+        Ref ref = git.checkout().setName(branch).call();
+        consumer.accept(ref.getName());
     }
 
     /**

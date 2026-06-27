@@ -2,10 +2,7 @@ package org.xiangqian.quick.deploy.model;
 
 import lombok.*;
 
-import java.util.Collection;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -24,12 +21,19 @@ public class Group {
     private String id;
     // 名称
     private String name;
+    // 是否启用
+    private Boolean enabled;
+    // Git
+    private Git git;
+    // 服务器
+    private Server server;
     // 项目列表
     @Getter(AccessLevel.NONE)
     private Map<String, Proj> projs;
 
     public void setProjs(List<Proj> projs) {
         this.projs = projs.stream()
+                .filter(proj -> Optional.ofNullable(proj.getEnabled()).orElse(true))
                 .collect(Collectors.toMap(Proj::getId, Function.identity(), (oldProj, newProj) -> {
                     throw new IllegalStateException(String.format("Duplicate project ids [{id=%s, name=%s}, {id=%s, name=%s}]",
                             oldProj.getId(), oldProj.getName(),

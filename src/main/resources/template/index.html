@@ -30,10 +30,11 @@
         <th rowspan="2">名称</th>
         <th rowspan="2">Git仓库</th>
         <th rowspan="2">服务器</th>
-        <th colspan="5">最近一次部署记录</th>
+        <th colspan="6">最近一次部署记录</th>
         <th rowspan="2">操作</th>
     </tr>
     <tr>
+        <th>分支</th>
         <th>提交</th>
         <th>操作者</th>
         <th>时间</th>
@@ -43,14 +44,17 @@
     </thead>
     <tbody>
     <tr th:each="proj : ${projs}" th:id="${proj.id}"
-        th:with="repo=${proj.repo},server=${proj.server},lastRecord=${proj.lastRecord}">
+        th:with="repo=${proj.git.repo},server=${proj.server},lastRecord=${proj.lastRecord}">
         <td th:title="'今日部署 ' + ${proj.todayRecordCount} + ' 次'">
             <a name="name" th:text="${proj.name}" th:href="@{'/proj/' + ${proj.groupId} + '/' + ${proj.id} +'/record/list?t=' + ${timestamp}}" target="_blank"></a>
         </td>
-        <td class="nowrap" th:text="${repo.url + '@' + repo.branch}"></td>
+        <td class="nowrap">
+            <span th:text="${repo.url} + '@'"></span><select ><option th:each="branch : ${repo.branches}" th:text="${branch}" th:value="${branch}"></option></select>
+        </td>
         <td class="nowrap" th:text="${server.user + '@' + server.host + ':' + server.port}"></td>
         <div th:replace="~{record/list :: item(groupId=${proj.groupId}, projId=${proj.id}, record=${lastRecord})}"></div>
         <th:block th:unless="${lastRecord}">
+            <td name="branch">-</td>
             <td name="commit">-</td>
             <td name="operator" class="nowrap">-</td>
             <td name="time" class="nowrap">-</td>

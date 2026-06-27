@@ -17,13 +17,24 @@ public class GitTest {
     public void before() throws Exception {
         String user = "myuser";
         String passwd = "mypasswd";
-        String dir = "D:\\xiangqian\\my\\project\\quick-deploy\\proj\\test";
+        String dir = "D:\\xiangqian\\project\\quick-deploy\\tmp\\proj\\test";
         git = Git.open(Path.of(dir), user, passwd);
+    }
+
+    @Test
+    public void remote() throws Exception {
+        System.out.format("remote: %s", git.remote()).println();
     }
 
     @Test
     public void branch() throws Exception {
         System.out.format("branch: %s", git.branch()).println();
+    }
+
+    @Test
+    public void checkout() throws Exception {
+        String branch = "dev";
+        git.checkout(branch, System.out::println);
     }
 
     @Test

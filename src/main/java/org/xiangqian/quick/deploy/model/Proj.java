@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import lombok.*;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.collections4.CollectionUtils;
+import org.apache.commons.lang3.ObjectUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.xiangqian.quick.deploy.util.JsonUtil;
 
@@ -12,6 +13,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Objects;
 
 /**
  * 项目
@@ -27,10 +29,12 @@ public class Proj {
     private String id;
     // 名称
     private String name;
+    // 是否启用
+    private Boolean enabled;
     // 认证令牌
     private String token;
-    // 仓库
-    private Repo repo;
+    // Git
+    private Git git;
     // 服务器
     private Server server;
     // 构建
@@ -57,6 +61,24 @@ public class Proj {
     @Getter(AccessLevel.NONE)
     @Setter(AccessLevel.NONE)
     private volatile boolean locked;
+
+    @JsonIgnore
+    public void setGitIfNeeded(Git git) {
+        if (this.git == null) {
+            return;
+        }
+        if (ObjectUtils.allNull(this.git.getUser(), this.git.getPasswd())) {
+            this.git.setUser(git.getUser());
+            this.git.setPasswd(git.getPasswd());
+        }
+    }
+
+    @JsonIgnore
+    public void setServerIfNeeded(Server server) {
+        if (this.server == null) {
+            this.server = server;
+        }
+    }
 
     public void setRecords(List<Record> records) {
         this.records = records;

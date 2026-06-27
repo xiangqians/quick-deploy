@@ -22,8 +22,8 @@ import java.util.function.Consumer;
 public class Repo {
     // 地址
     private String url;
-    // 分支
-    private String branch;
+    // 分支列表
+    private List<String> branches;
     // 用户
     private String user;
     // 密码
@@ -58,16 +58,27 @@ public class Repo {
             return false;
         }
 
-        if (!git.branch().equals(branch)) {
+        if (!git.remote().equals(url)) {
             IOUtils.closeQuietly(git);
             PathUtils.deleteDirectory(dir);
             return false;
+        }
+
+        String branch = branches.get(0);
+        if (!git.branch().equals(branch)) {
+            git.reset("HEAD", $ -> {
+            });
+//            git.pull($ -> {
+//            });
+            git.checkout(branch, $ -> {
+            });
         }
 
         return true;
     }
 
     private void clone(Path dir) throws Exception {
+        String branch = branches.get(0);
         git = Git.clone(dir, url, branch, user, passwd);
     }
 

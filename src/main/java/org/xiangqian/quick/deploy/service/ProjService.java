@@ -18,6 +18,7 @@ import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 import org.xiangqian.quick.deploy.model.*;
 import org.xiangqian.quick.deploy.model.Record;
 import org.xiangqian.quick.deploy.util.*;
+import org.xiangqian.quick.deploy.util.Git;
 
 import java.io.File;
 import java.io.PrintWriter;
@@ -54,6 +55,7 @@ public class ProjService implements ApplicationRunner, Runnable {
         // 加载项目组信息
         groups = YamlUtil.deser(Path.of(dir, "proj.yml").toFile(), new TypeReference<List<Group>>() {
                 }).stream()
+                .filter(group -> Optional.ofNullable(group.getEnabled()).orElse(true))
                 .collect(Collectors.toMap(Group::getId, Function.identity(), (oldGroup, newGroup) -> {
                     throw new IllegalStateException(String.format("Duplicate group ids [{id=%s, name=%s}, {id=%s, name=%s}]",
                             oldGroup.getId(), oldGroup.getName(),
@@ -66,6 +68,8 @@ public class ProjService implements ApplicationRunner, Runnable {
                 proj.setGroupId(group.getId());
                 proj.setGroupName(group.getName());
                 proj.setDir(dir);
+                proj.setGitIfNeeded(group.getGit());
+                proj.setServerIfNeeded(group.getServer());
 
                 // Webhook（网络钩子）
                 String token = StringUtils.trim(proj.getToken());
@@ -74,10 +78,10 @@ public class ProjService implements ApplicationRunner, Runnable {
                 }
 
                 // 初始化仓库
-                log.debug("初始化本地仓库 { groupId={}, projId={}, projName={} } ...", group.getId(), proj.getId(), proj.getName());
-                Repo repo = proj.getRepo();
+                log.debug("初始化本地仓库 {}/{} ...", group.getId(), proj.getId());
+                Repo repo = proj.getGit().getRepo();
                 repo.init(proj.getDir("repo"));
-                log.debug("已初始化本地仓库 { groupId={}, projId={}, projName={} }", group.getId(), proj.getId(), proj.getName());
+                log.debug("已初始化本地仓库 {}/{}", group.getId(), proj.getId());
 
                 // 加载记录列表
                 Path recordsJsonFile = proj.getRecordsJsonFile();
@@ -133,7 +137,7 @@ public class ProjService implements ApplicationRunner, Runnable {
         Collection<Proj> projs = Optional.ofNullable(groups.get(groupId)).map(Group::getProjs).orElse(null);
         if (CollectionUtils.isNotEmpty(projs)) {
             for (Proj proj : projs) {
-                Repo repo = proj.getRepo();
+                Repo repo = proj.getGit().getRepo();
                 List<Git.Commit> commits = repo.log(20);
                 repo.setLastCommits(commits);
             }
@@ -149,7 +153,7 @@ public class ProjService implements ApplicationRunner, Runnable {
             return Collections.emptyList();
         }
 
-        Repo repo = proj.getRepo();
+        Repo repo = proj.getGit().getRepo();
         List<Git.Commit> commits = repo.log(commitId, 11);
         if (CollectionUtils.isNotEmpty(commits)) {
             Git.Commit commit = commits.getFirst();
@@ -167,7 +171,7 @@ public class ProjService implements ApplicationRunner, Runnable {
         }
 
         try {
-            Repo repo = proj.getRepo();
+            Repo repo = proj.getGit().getRepo();
             repo.reset("HEAD", log::debug);
             repo.pull(log::debug);
             return true;
@@ -272,7 +276,7 @@ public class ProjService implements ApplicationRunner, Runnable {
         }
 
         record.addPullStage();
-        Repo repo = proj.getRepo();
+        Repo repo = proj.getGit().getRepo();
         repo.reset("HEAD", $ -> {
         });
         String commitId = record.getCommitId();
@@ -301,7 +305,7 @@ public class ProjService implements ApplicationRunner, Runnable {
         }
 
         // 获取本地仓库目录
-        Path repoDir = proj.getRepo().getDir();
+        Path repoDir = proj.getGit().getRepo().getDir();
 
         // 执行命令
         if (!exec(record, build, index, cmd -> {

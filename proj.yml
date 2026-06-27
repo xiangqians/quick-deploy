@@ -2,34 +2,45 @@
 - id: dev
   # 组名称
   name: 开发环境
+  # 是否启用组
+  enabled: true
+  # Git
+  git:
+    # 用户
+    user: myuser
+    # 密码
+    passwd: mypasswd
+  # 服务器
+  server:
+    # 主机
+    host: myserver
+    # 端口
+    port: 22
+    # 用户
+    user: myuser
+    # 密码
+    passwd: mypasswd
   # 项目列表
   projs:
     # 项目唯一标识
     - id: java-test
       # 项目名称
       name: Java测试
+      # 是否启用项目
+      enabled: true
       # 认证令牌
       token: mytoken
-      # 仓库
-      repo:
-        # 地址
-        url: http://mygit.org/example/java-test.git
-        # 分支
-        branch: dev
-        # 用户
-        user: myuser
-        # 密码
-        passwd: mypasswd
-      # 服务器
-      server:
-        # 主机
-        host: myserver
-        # 端口
-        port: 22
-        # 用户
-        user: myuser
-        # 密码
-        passwd: mypasswd
+      # Git
+      git:
+        # 仓库
+        repo:
+          # 地址
+          url: http://mygit.org/example/java-test.git
+          # 分支
+          branches:
+            - dev
+            - test
+            - prod
       # 构建
       build:
         # 命令集
@@ -57,16 +68,13 @@
     - id: java-test_biz
       name: Java测试（业务）
       token: mytoken
-      repo:
-        url: http://mygit.org/example/java-test.git
-        branch: dev
-        user: myuser
-        passwd: mypasswd
-      server:
-        host: myserver
-        port: 22
-        user: myuser
-        passwd: mypasswd
+      git:
+        repo:
+          url: http://mygit.org/example/java-test.git
+          branches:
+            - dev
+            - test
+            - prod
       build:
         cmds:
           - run: mvn.cmd package -Dmaven.test.skip=true -Dproject.build.sourceEncoding=UTF-8 -Dproject.reporting.outputEncoding=UTF-8 -Dfile.encoding=UTF-8
@@ -91,11 +99,15 @@
     - id: vue-test
       name: Vue测试
       token: mytoken
-      repo:
-        url: http://mygit.org/example/vue-test.git
-        branch: dev
+      git:
         user: myuser
         passwd: mypasswd
+        repo:
+          url: http://mygit.org/example/vue-test.git
+          branches:
+            - dev
+            - test
+            - prod
       server:
         host: myserver
         port: 22
