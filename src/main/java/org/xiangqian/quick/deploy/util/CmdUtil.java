@@ -4,10 +4,7 @@ import lombok.SneakyThrows;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.SystemUtils;
 
-import java.io.BufferedReader;
-import java.io.Closeable;
-import java.io.InputStreamReader;
-import java.io.SequenceInputStream;
+import java.io.*;
 import java.nio.charset.StandardCharsets;
 import java.util.function.Consumer;
 
@@ -20,12 +17,35 @@ public class CmdUtil {
     /**
      * 执行命令
      *
+     * @param dir      工作目录
      * @param cmd      命令
      * @param closer   流关闭器
      * @param callback 结果回调
+     * @return exitValue
+     * @throws Exception
      */
     @SneakyThrows
-    public static void exec(String cmd, Consumer<Closeable> closer, Consumer<String> callback) {
+    public static int exec(File dir, String cmd, Consumer<Closeable> closer, Consumer<String> callback) {
+        ProcessBuilder builder = new ProcessBuilder(cmd.split("\\s+"));
+        builder.directory(dir);
+
+        // 合并错误流到标准输出（便于统一读取）
+        builder.redirectErrorStream(true);
+
+        return exec(() -> builder.start(), closer, callback);
+    }
+
+    /**
+     * 执行命令
+     *
+     * @param cmd      命令
+     * @param closer   流关闭器
+     * @param callback 结果回调
+     * @return exitValue
+     * @throws Exception
+     */
+    @SneakyThrows
+    public static int exec(String cmd, Consumer<Closeable> closer, Consumer<String> callback) {
         if (SystemUtils.IS_OS_WINDOWS) {
             // Windows NT: ?
             // Windows 95: ?
@@ -40,11 +60,16 @@ public class CmdUtil {
                     SystemUtils.OS_VERSION));
         }
 
+        String finalCmd = cmd;
+        return exec(() -> Runtime.getRuntime().exec(finalCmd), closer, callback);
+    }
+
+    private static int exec(ProcessProvider provider, Consumer<Closeable> closer, Consumer<String> callback) throws Exception {
         // 创建资源组，用于统一管理所有需要关闭的资源
         CloseableImpl closeable = new CloseableImpl();
         try {
             // 执行命令
-            Process process = Runtime.getRuntime().exec(cmd);
+            Process process = provider.get();
             closeable.addLast(process);
 
             // 合并标准输入流和错误流，并用 UTF-8 编码读取
@@ -62,9 +87,14 @@ public class CmdUtil {
 
             // 等待外部进程处理完成，并获取外部进程的返回值
             int exitValue = process.waitFor();
+            return exitValue;
         } finally {
             IOUtils.closeQuietly(closeable);
         }
+    }
+
+    private static interface ProcessProvider {
+        Process get() throws Exception;
     }
 
 }

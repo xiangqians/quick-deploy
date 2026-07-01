@@ -10,8 +10,6 @@ import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.boot.ApplicationArguments;
-import org.springframework.boot.ApplicationRunner;
 import org.springframework.stereotype.Service;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 import org.xiangqian.quick.deploy.model.*;
@@ -40,15 +38,12 @@ import java.util.stream.Collectors;
  */
 @Slf4j
 @Service
-public class ProjService implements ApplicationRunner, Runnable {
+public class ProjService {
 
-    private Map<String, Group> groups;
+    public Map<String, Group> groups;
 
     @Autowired
     private EmitterService emitterService;
-
-    @Autowired
-    private UserService userService;
 
     public ProjService(@Value("${server.port}") Integer port, @Value("${server.servlet.context-path}") String contextPath, @Value("${dir}") String dir) throws Exception {
         // 加载项目组信息
@@ -67,9 +62,9 @@ public class ProjService implements ApplicationRunner, Runnable {
                 proj.setServerIfNeeded(group.getServer());
 
                 // Webhook（网络钩子）
-                String token = StringUtils.trim(proj.getToken());
+                String token = StringUtils.trim(Optional.ofNullable(proj.getTrigger()).map(trigger -> Optional.ofNullable(trigger.getWebhook()).map(Trigger.Webhook::getToken).orElse(null)).orElse(null));
                 if (StringUtils.isNotEmpty(token)) {
-                    webhook.append(String.format("%s - %s\nhttp://localhost:%s%s/proj/%s/%s/deploy/webhook?token=%s\n\n", proj.getGroupName(), proj.getName(), port, ("/".equals(contextPath) ? "" : contextPath), group.getId(), proj.getId(), proj.getToken()));
+                    webhook.append(String.format("%s - %s\nhttp://localhost:%s%s/proj/%s/%s/deploy/webhook?token=%s\n\n", proj.getGroupName(), proj.getName(), port, ("/".equals(contextPath) ? "" : contextPath), group.getId(), proj.getId(), token));
                 }
 
                 // 初始化仓库
@@ -305,7 +300,7 @@ public class ProjService implements ApplicationRunner, Runnable {
         // 执行命令
         if (!exec(record, build, index, cmd -> {
             try {
-                record.appendLog(String.format("Local$ %s", cmd), outer -> CmdUtil.exec(String.format("cd %s && %s", repoDir.toString(), cmd), record::setCloseable, outer::out));
+                record.appendLog(String.format("Local$ %s", cmd), outer -> CmdUtil.exec(repoDir.toFile(), cmd, record::setCloseable, outer::out));
             } finally {
                 record.setCloseable(null);
             }
@@ -568,60 +563,6 @@ public class ProjService implements ApplicationRunner, Runnable {
 
     public SseEmitter event(String groupId) {
         return emitterService.create(SecurityUtil.getUser().getName(), groupId);
-    }
-
-    private long lastTime = 0;
-
-    // 发送消息给所有客户端
-    private void run0() {
-        if (emitterService.isEmpty()) {
-            return;
-        }
-
-        long currTime = System.currentTimeMillis();
-        if (currTime > lastTime + 5 * 1000) {
-            lastTime = currTime;
-            log.debug("emitters {}", emitterService);
-        }
-
-        emitterService.sendAll(emitter -> {
-            String groupId = emitter.getGroupId();
-            Group group = groups.get(groupId);
-            if (group == null) {
-                return;
-            }
-
-            Collection<Proj> projs = group.getProjs();
-            if (CollectionUtils.isEmpty(projs)) {
-                return;
-            }
-
-            for (Proj proj : projs) {
-                Record lastRecord = proj.getLastRecord();
-                if (lastRecord == null) {
-                    continue;
-                }
-
-                emitter.send("proj", Map.of("id", proj.getId(), "todayRecordCount", proj.getTodayRecordCount(), "lastRecord", Map.of("running", lastRecord.isRunning(), "final", lastRecord.isFinal(), "paused", lastRecord.isPaused(), "commit", SummaryDetail.builder().summary(Optional.ofNullable(lastRecord.getCommit()).map(Git.Commit::getSummary).orElse(null)).detail(Optional.ofNullable(lastRecord.getCommit()).map(Git.Commit::getDetail).orElse(null)).build(), "operator", SummaryDetail.builder().summary(StringUtils.join(lastRecord.getOperatorNicks(), "、")).detail(lastRecord.joinOperators("、")).build(), "time", DateTimeUtil.human(lastRecord.getStartTime()), "status", lastRecord.getStatus(), "duration", DurationUtil.human(lastRecord.getDuration()))));
-            }
-        });
-    }
-
-    @Override
-    public void run() {
-        while (true) {
-            try {
-                run0();
-                TimeUnit.SECONDS.sleep(1);
-            } catch (Exception e) {
-                log.error("proj thread run 异常", e);
-            }
-        }
-    }
-
-    @Override
-    public void run(ApplicationArguments args) throws Exception {
-        new Thread(this).start();
     }
 
 }

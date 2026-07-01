@@ -27,8 +27,10 @@ public class Repo {
     // 分支列表
     private String branch;
     // 用户
+    @JsonIgnore
     private String user;
     // 密码
+    @JsonIgnore
     private String passwd;
 
     // 最近提交
@@ -82,22 +84,22 @@ public class Repo {
         return git.getDir();
     }
 
-    @SneakyThrows
     public void pull(Consumer<String> consumer) {
         git.pull(consumer);
     }
 
-    @SneakyThrows
     public void reset(String commitId, Consumer<String> consumer) {
         git.reset(commitId, consumer);
     }
 
-    @SneakyThrows
+    public String remoteLastCommitId() {
+        return git.remoteLastCommitId();
+    }
+
     public List<Git.Commit> log(int maxCount) {
         return git.log(maxCount);
     }
 
-    @SneakyThrows
     public List<Git.Commit> log(String commitId, int maxCount) {
         return git.log(commitId, maxCount);
     }

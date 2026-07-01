@@ -31,8 +31,8 @@ public class Proj {
     private String name;
     // 是否启用
     private Boolean enabled;
-    // 认证令牌
-    private String token;
+    // 触发器
+    private Trigger trigger;
     // Git
     private Git git;
     // 服务器
@@ -64,13 +64,13 @@ public class Proj {
 
     @JsonIgnore
     public void setGitIfNeeded(Git git) {
-        if (this.git == null) {
-            return;
-        }
         if (ObjectUtils.allNull(this.git.getUser(), this.git.getPasswd())) {
             this.git.setUser(git.getUser());
             this.git.setPasswd(git.getPasswd());
         }
+        Repo repo = this.git.getRepo();
+        repo.setUser(this.git.getUser());
+        repo.setPasswd(this.git.getPasswd());
     }
 
     @JsonIgnore

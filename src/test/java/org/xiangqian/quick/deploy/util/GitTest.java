@@ -17,7 +17,7 @@ public class GitTest {
     public void before() throws Exception {
         String user = "myuser";
         String passwd = "mypasswd";
-        String dir = "D:\\xiangqian\\project\\quick-deploy\\tmp\\proj\\test";
+        String dir = "D:\\xiangqian\\my\\project\\quick-deploy\\tmp\\proj\\dev\\platform\\repo";
         git = Git.open(Path.of(dir), user, passwd);
     }
 
@@ -40,6 +40,11 @@ public class GitTest {
     @Test
     public void pull() throws Exception {
         git.pull(str -> System.out.println("\n" + str));
+    }
+
+    @Test
+    public void remoteLastCommitId() throws Exception {
+        System.out.println(git.remoteLastCommitId());
     }
 
     @Test

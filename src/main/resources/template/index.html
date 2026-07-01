@@ -320,6 +320,17 @@
             aElem.className = status.code;
             aElem.innerHTML = status.label;
             aElem.title = status.detail;
+            // 更新 record id
+            const url = aElem.href;
+            const idMatch = url.match(/\/record\/([a-f0-9]+)\/log/);
+            if (idMatch) {
+                const oldRecordId = idMatch[1];
+                const newRecordId = lastRecord.id;
+                if (oldRecordId !== newRecordId) {
+                    const newUrl = url.replace(/\/record\/[a-f0-9]+\/log/, `/record/${newRecordId}/log`);
+                    aElem.href = newUrl;
+                }
+            }
 
             // duration
             tdElem = trElem.querySelector('td[name="duration"]');

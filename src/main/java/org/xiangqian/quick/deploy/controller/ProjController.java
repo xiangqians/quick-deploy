@@ -8,11 +8,13 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.ModelAndView;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 import org.springframework.web.servlet.view.RedirectView;
+import org.xiangqian.quick.deploy.model.Trigger;
 import org.xiangqian.quick.deploy.service.ProjService;
 import org.xiangqian.quick.deploy.util.Git;
 import org.xiangqian.quick.deploy.util.SecurityUtil;
 
 import java.util.List;
+import java.util.Optional;
 
 /**
  * @author xiangqian
@@ -45,7 +47,7 @@ public class ProjController extends AbsController {
 
     @RequestMapping("/proj/{groupId}/{projId}/{commitId}/deploy")
     public RedirectView deploy(@PathVariable("groupId") String groupId, @PathVariable("projId") String projId, @PathVariable("commitId") String commitId) {
-        projService.deploy(groupId, projId, commitId, proj -> true);
+        projService.deploy(groupId, projId, commitId, $ -> true);
         return redirectView("/");
     }
 
@@ -54,7 +56,8 @@ public class ProjController extends AbsController {
     public Boolean webhookDeploy(@PathVariable("groupId") String groupId, @PathVariable("projId") String projId, @RequestParam(name = "token", required = false) String token) {
         try {
             SecurityUtil.setWebhookUser();
-            return projService.deploy(groupId, projId, "HEAD", proj -> StringUtils.isNotEmpty(token) && StringUtils.equals(proj.getToken(), token));
+            return projService.deploy(groupId, projId, "HEAD", proj -> StringUtils.isNotEmpty(token)
+                    && StringUtils.equals(Optional.ofNullable(proj.getTrigger()).map(trigger -> Optional.ofNullable(trigger.getWebhook()).map(Trigger.Webhook::getToken).orElse(null)).orElse(null), token));
         } finally {
             SecurityUtil.removeWebhookUser();
         }

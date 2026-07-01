@@ -3,6 +3,7 @@ package org.xiangqian.quick.deploy.util;
 import com.fasterxml.jackson.annotation.JsonFormat;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import lombok.Data;
+import lombok.SneakyThrows;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.StringUtils;
@@ -25,10 +26,7 @@ import java.nio.file.Path;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
-import java.util.ArrayList;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
 import java.util.function.Consumer;
 
 /**
@@ -68,9 +66,9 @@ public class Git implements Closeable {
      * @param user   用户
      * @param passwd 密码
      * @return
-     * @throws Exception
      */
-    public static Git clone(Path dir, String url, String branch, String user, String passwd) throws Exception {
+    @SneakyThrows
+    public static Git clone(Path dir, String url, String branch, String user, String passwd) {
         // 用户、密码凭证
         CredentialsProvider credsProvider = null;
         if (StringUtils.isNoneEmpty(user, passwd)) {
@@ -117,9 +115,9 @@ public class Git implements Closeable {
      * $ git remote -v
      *
      * @return
-     * @throws Exception
      */
-    public String remote() throws Exception {
+    @SneakyThrows
+    public String remote() {
         return getRepo().getConfig().getString("remote", "origin", "url");
     }
 
@@ -127,9 +125,9 @@ public class Git implements Closeable {
      * $ git branch
      *
      * @return
-     * @throws Exception
      */
-    public String branch() throws Exception {
+    @SneakyThrows
+    public String branch() {
         return getRepo().getBranch();
     }
 
@@ -138,9 +136,9 @@ public class Git implements Closeable {
      *
      * @param branch
      * @param consumer
-     * @throws Exception
      */
-    public void checkout(String branch, Consumer<String> consumer) throws Exception {
+    @SneakyThrows
+    public void checkout(String branch, Consumer<String> consumer) {
         Ref ref = git.checkout()
                 .setCreateBranch(true) // 允许创建新分支
                 .setName(branch)
@@ -152,9 +150,9 @@ public class Git implements Closeable {
      * $ git pull
      *
      * @param consumer
-     * @throws Exception
      */
-    public void pull(Consumer<String> consumer) throws Exception {
+    @SneakyThrows
+    public void pull(Consumer<String> consumer) {
         PullResult result = git.pull()
                 .setRemoteBranchName(getRepo().getBranch())
                 .setCredentialsProvider(credsProvider)
@@ -165,6 +163,26 @@ public class Git implements Closeable {
         if (ArrayUtils.getLength(mergedCommits) == 2) {
             parseCommits(mergedCommits[0], mergedCommits[1]).forEach(commit -> consumer.accept(String.valueOf(commit)));
         }
+    }
+
+    /**
+     * git ls-remote origin main
+     * 查看远程仓库 origin 上 main 分支最新提交信息，但不会下载任何代码或数据到本地
+     *
+     * @return
+     */
+    @SneakyThrows
+    public String remoteLastCommitId() {
+        Collection<Ref> refs = git.lsRemoteRepository()
+                .setRemote(remote())
+                .setHeads(true)
+                .setCredentialsProvider(credsProvider)
+                .call();
+        return refs.stream()
+                .filter(ref -> ref.getName().equals("refs/heads/" + branch()))
+                .findFirst()
+                .map(ref -> ref.getObjectId().getName())
+                .orElse(null);
     }
 
     public Commit parseCommit(ObjectId commitId) throws IOException {
@@ -205,9 +223,9 @@ public class Git implements Closeable {
      *
      * @param ref
      * @param consumer
-     * @throws Exception
      */
-    public void reset(String ref, Consumer<String> consumer) throws Exception {
+    @SneakyThrows
+    public void reset(String ref, Consumer<String> consumer) {
         Ref r = git.reset()
                 .setMode(ResetCommand.ResetType.HARD)
                 .setRef(ref)
@@ -220,13 +238,14 @@ public class Git implements Closeable {
      *
      * @param maxCount
      * @return
-     * @throws Exception
      */
-    public List<Commit> log(int maxCount) throws Exception {
+    @SneakyThrows
+    public List<Commit> log(int maxCount) {
         return log(null, maxCount);
     }
 
-    public List<Commit> log(String commitId, int maxCount) throws Exception {
+    @SneakyThrows
+    public List<Commit> log(String commitId, int maxCount) {
         LogCommand logCommand = git.log();
         if (commitId != null) {
             logCommand.add(resolve(commitId));

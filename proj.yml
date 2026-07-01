@@ -23,19 +23,27 @@
   # 项目列表
   projs:
     # 项目唯一标识
-    - id: java-test
+    - id: java-proj
       # 项目名称
-      name: Java测试
+      name: Java项目
       # 是否启用项目
       enabled: true
-      # 认证令牌
-      token: mytoken
+      # 触发器
+      trigger:
+        # Webhook（网络钩子）触发：通过 HTTP 回调触发部署
+        webhook:
+          # 认证令牌
+          token: mytoken
+        # 轮询触发：定期检测并触发部署
+        polling:
+          # 轮询间隔，单位：秒
+          interval: 15
       # Git
       git:
         # 仓库
         repo:
           # 地址
-          url: http://mygit.org/example/java-test.git
+          url: http://mygit.org/example/java-proj.git
           # 分支
           branches: dev
       # 构建
@@ -58,46 +66,17 @@
             # 满足条件时暂停，需用户确认后执行
             pause: "#operatorName == 'webhook'"
             # 执行
-            run: mv web-1.0.0.jar /opt/java-test/
-          - run: cd /opt/java-test && ./stop.sh
-          - run: cd /opt/java-test && ./start.sh
+            run: mv web-1.0.0.jar /opt/java-proj/
+          - run: cd /opt/java-proj && ./stop.sh
+          - run: cd /opt/java-proj && ./start.sh
 
-    - id: java-test_biz
-      name: Java测试（业务）
-      token: mytoken
-      git:
-        repo:
-          url: http://mygit.org/example/java-test.git
-          branch: dev
-      build:
-        cmds:
-          - run: mvn.cmd package -Dmaven.test.skip=true -Dproject.build.sourceEncoding=UTF-8 -Dproject.reporting.outputEncoding=UTF-8 -Dfile.encoding=UTF-8
-          - run: if not exist "web/target/web-1.0.0.jar" rmdir /s /q "web/target/classes"
-        targets:
-          - common/target/common-1.0.0.jar
-          - web/target/classes
-      deploy:
-        cmds:
-          - run: cp /opt/java-test/web-1.0.0.jar ./
-          - run: /opt/java/jdk-21.0.2/bin/jar xvf web-1.0.0.jar
-          - run: rm -rf BOOT-INF/classes BOOT-INF/lib/common-1.0.0.jar
-          - run: cp -r classes BOOT-INF/
-          - run: cp common-1.0.0.jar BOOT-INF/lib/
-          - run: /opt/java/jdk-21.0.2/bin/jar cvfm0 web-1.0.0.jar META-INF/MANIFEST.MF BOOT-INF META-INF org
-          - name: overwrite_restart
-            pause: "#operatorName == 'webhook'"
-            run: mv web-1.0.0.jar /opt/java-test/
-          - run: cd /opt/java-test && ./stop.sh
-          - run: cd /opt/java-test && ./start.sh
-
-    - id: vue-test
-      name: Vue测试
-      token: mytoken
+    - id: vue-proj
+      name: Vue项目
       git:
         user: myuser
         passwd: mypasswd
         repo:
-          url: http://mygit.org/example/vue-test.git
+          url: http://mygit.org/example/vue-proj.git
           branch: dev
       server:
         host: myserver
@@ -106,12 +85,20 @@
         passwd: mypasswd
       build:
         # 安装环境：
-        # 1）nvm-setup.exe
+        # 1）安装 nvm
+        #    $ wget -qO- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.3/install.sh | bash
+        #    $ ln -sf /root/.nvm/versions/node/v20.18.0/bin/node /usr/local/bin/node
+        #    $ ln -sf /root/.nvm/versions/node/v20.18.0/bin/npm /usr/local/bin/npm
+        #    $ ln -sf /root/.nvm/versions/node/v20.18.0/bin/npx /usr/local/bin/npx
         # 2）$ nvm install 20.18.0
         # 3）$ nvm list
         #    $ nvm use 20.18.0
         cmds:
-          - run: rmdir /s /q dist
+          # Windows
+          #- run: rmdir /s /q dist
+          # Linux
+          - run: rm -rf dist
+
           - run: npm install
           - run: npm install @zip.js/zip.js@2.7.73 uuid@9.0.0 --save-exact
           - run: npm run build:test
@@ -123,15 +110,15 @@
         cmds:
           - name: overwrite_reload
             pause: "#operatorName == 'webhook'"
-            run: rm -rf /opt/nginx/html/vue-test/assets
-          - run: rm -rf /opt/nginx/html/vue-test/images
-          - run: rm -rf /opt/nginx/html/vue-test/index.html
-          - run: mv assets /opt/nginx/html/vue-test/
-          - run: mv images /opt/nginx/html/vue-test/
-          - run: mv index.html /opt/nginx/html/vue-test/
-          - run: chown -R www:www /opt/nginx/html/vue-test/assets
-          - run: chown -R www:www /opt/nginx/html/vue-test/images
-          - run: chown -R www:www /opt/nginx/html/vue-test/index.html
+            run: rm -rf /opt/nginx/html/vue-proj/assets
+          - run: rm -rf /opt/nginx/html/vue-proj/images
+          - run: rm -rf /opt/nginx/html/vue-proj/index.html
+          - run: mv assets /opt/nginx/html/vue-proj/
+          - run: mv images /opt/nginx/html/vue-proj/
+          - run: mv index.html /opt/nginx/html/vue-proj/
+          - run: chown -R www:www /opt/nginx/html/vue-proj/assets
+          - run: chown -R www:www /opt/nginx/html/vue-proj/images
+          - run: chown -R www:www /opt/nginx/html/vue-proj/index.html
           # error: invalid PID number "" in "/run/nginx.pid"
           # $ ps aux | grep nginx
           # $ cat /run/nginx.pid

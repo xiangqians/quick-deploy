@@ -2,6 +2,7 @@ package org.xiangqian.quick.deploy.util;
 
 import org.junit.Test;
 
+import java.io.File;
 import java.util.Arrays;
 
 /**
@@ -12,7 +13,7 @@ public class CmdUtilTest {
 
     @Test
     public void rmdir1() {
-        CmdUtil.exec("rmdir /s /q D:\\xiangqian\\my\\project\\quick-deploy\\proj\\error",closeable -> {}, System.out::println);
+        CmdUtil.exec("rmdir /s /q D:\\xiangqian\\my\\project\\quick-deploy\\proj\\error", closeable -> {}, System.out::println);
     }
 
     @Test
@@ -36,8 +37,19 @@ public class CmdUtilTest {
     }
 
     @Test
-    public void mvn() throws Exception {
-        CmdUtil.exec("cd D:\\xiangqian\\my\\project\\quick-deploy\\proj\\a83fa3cfe868addf372e42e6df04b238\\platform && mvn-java11.cmd clean package",
+    public void mvn1() throws Exception {
+        CmdUtil.exec("cd D:\\xiangqian\\my\\project\\quick-deploy\\tmp\\proj\\dev\\platform\\repo && mvn-java11.cmd clean package",
+                closeable -> {},
+                System.out::println);
+    }
+
+    @Test
+    public void mvn2() throws Exception {
+        CmdUtil.exec(new File("D:\\xiangqian\\my\\project\\quick-deploy\\tmp\\proj\\dev\\platform\\repo"),
+//                "mvn-java11.cmd clean"
+//                "mvn-java11.cmd clean package"
+                "mvn-java11.cmd clean && mvn-java11.cmd package"
+                ,
                 closeable -> {},
                 System.out::println);
     }
