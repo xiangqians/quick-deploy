@@ -50,10 +50,13 @@
       build:
         # 命令集
         cmds:
+          # Windows
           # 找到 Maven 安装目录下的 bin/mvn.cmd，在文件中开始执行之前添加：
           # @REM 设置 Maven 命令输出为 UTF-8 编码
           # set MAVEN_OPTS=%MAVEN_OPTS% -Dfile.encoding=UTF-8 -Dconsole.encoding=UTF-8
-          - run: mvn.cmd clean package -Dmaven.test.skip=true -Dproject.build.sourceEncoding=UTF-8 -Dproject.reporting.outputEncoding=UTF-8 -Dfile.encoding=UTF-8
+          #- run: mvn.cmd clean package -Dmaven.test.skip=true -Dproject.build.sourceEncoding=UTF-8 -Dproject.reporting.outputEncoding=UTF-8 -Dfile.encoding=UTF-8
+          # Linux
+          - run: mvn clean package -Dmaven.test.skip=true -Dproject.build.sourceEncoding=UTF-8 -Dproject.reporting.outputEncoding=UTF-8 -Dfile.encoding=UTF-8
         # 目标集
         targets:
           - web/target/web-1.0.0.jar
